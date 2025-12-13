@@ -1,0 +1,44 @@
+[project]
+name = "nemoscribe"
+version = "0.1.0"
+description = "Convert video files to SRT subtitles using NVIDIA NeMo ASR models with accurate timestamps"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0",
+    "nemo_toolkit[asr]",
+    "hydra-core>=1.3",
+    "omegaconf>=2.3",
+    "onnx<1.18",
+    "ml_dtypes>=0.3,<0.5",
+]
+
+[project.optional-dependencies]
+# ITN (Inverse Text Normalization) for converting spoken forms to written forms
+# e.g., "twenty five dollars" -> "$25"
+# Note: pynini dependency can be tricky to install on some systems
+itn = ["nemo_text_processing>=1.0.0"]
+# All optional features
+all = ["nemo_text_processing>=1.0.0"]
+
+
+[project.scripts]
+nemoscribe = "nemoscribe:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = []
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+torchaudio = { index = "pytorch" }
