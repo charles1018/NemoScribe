@@ -24,7 +24,7 @@ all = ["nemo_text_processing>=1.0.0"]
 
 
 [project.scripts]
-nemoscribe = "nemoscribe:main"
+nemoscribe = "nemoscribe.cli:main"
 
 [build-system]
 requires = ["hatchling"]
