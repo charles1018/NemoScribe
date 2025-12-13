@@ -339,6 +339,22 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 > **自動備援**：若平均片段長度超過 `max_segment_duration * 2`（例如無標點的模型），程式會自動切換至字詞級時間戳記。
 
+## 專案結構
+
+```
+nemoscribe/
+├── __init__.py        # 套件入口，版本資訊
+├── __main__.py        # python -m nemoscribe 支援
+├── cli.py             # CLI 解析與入口點
+├── config.py          # 所有 dataclass 設定
+├── audio.py           # 音訊處理 (ffmpeg)
+├── vad.py             # 語音活動偵測
+├── transcriber.py     # ASR 模型與轉錄
+├── srt.py             # SRT 格式化與輸出
+├── postprocess.py     # ITN、片段合併
+└── log_utils.py       # 日誌過濾
+```
+
 ## 支援的影片格式
 
 `.mp4`、`.mkv`、`.avi`、`.mov`、`.webm`、`.m4v`

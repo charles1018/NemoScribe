@@ -339,6 +339,22 @@ The script obtains timestamps in this priority order:
 
 > **Auto Fallback**: If average segment length exceeds `max_segment_duration * 2` (e.g., models without punctuation), the script automatically switches to word-level timestamps.
 
+## Project Structure
+
+```
+nemoscribe/
+├── __init__.py        # Package entry, version info
+├── __main__.py        # python -m nemoscribe support
+├── cli.py             # CLI parsing and entry point
+├── config.py          # All dataclass configurations
+├── audio.py           # Audio processing with ffmpeg
+├── vad.py             # Voice Activity Detection
+├── transcriber.py     # ASR model and transcription
+├── srt.py             # SRT formatting and output
+├── postprocess.py     # ITN, segment merging
+└── log_utils.py       # Log filtering
+```
+
 ## Supported Video Formats
 
 `.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, `.m4v`
