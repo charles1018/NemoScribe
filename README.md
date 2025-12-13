@@ -142,7 +142,7 @@ uv run nemoscribe video_path="video.mp4" vad.enabled=true
 uv run nemoscribe video_dir=/path/to/videos/ output_dir=/path/to/subtitles/
 ```
 
-> **📖 進階調校：** 針對不同場景（戲劇、新聞、技術教學）的最佳參數設定，請參考 [TUNING_GUIDE.md](docs/TUNING_GUIDE.md)。
+> **📖 Advanced Tuning:** For optimal parameter configurations for different scenarios (drama, news, technical tutorials), see [TUNING_GUIDE.md](docs/TUNING_GUIDE.md).
 
 ## Usage Examples
 
