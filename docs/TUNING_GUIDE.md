@@ -30,7 +30,8 @@ uv run nemoscribe \
     video_path="您的影片.mp4" \
     output_path="輸出字幕.srt" \
     vad.enabled=true \
-    vad.onset=0.1 \
+    vad.onset=0.2 \
+    vad.offset=0.1 \
     audio.max_chunk_duration=60 \
     audio.smart_segmentation=true
 ```
@@ -67,7 +68,7 @@ uv run nemoscribe \
     output_path="輸出字幕.srt" \
     vad.enabled=true \
     vad.model="vad_multilingual_frame_marblenet" \
-    vad.onset=0.1 \
+    vad.onset=0.2 \
     vad.offset=0.1 \
     vad.min_duration_on=0.1 \
     vad.filter_speech_first=false \
@@ -79,7 +80,8 @@ uv run nemoscribe \
 ### 參數詳解
 | 參數 | 推薦值 | 原因 |
 | :--- | :--- | :--- |
-| `vad.onset` | `0.1` | **極度敏感**。確保捕捉到細微的 "Help!" 或氣音。 |
+| `vad.onset` | `0.2` | **經測試驗證最佳值**。平衡靈敏度與準確度，WER 最低且時間戳記最準確。 |
+| `vad.offset` | `0.1` | **較低的結束門檻**。確保捕捉完整語句結尾。 |
 | `vad.min_duration_on` | `0.1` | 保留極短促的發音，低於 0.1 秒通常是雜訊。 |
 | `vad.filter_speech_first` | `false` | **不強行過濾**。避免誤刪背景吵雜的對話。 |
 | `postprocessing.enable_itn` | `false` | 戲劇對白通常不需要將數字轉為阿拉伯數字。 |
@@ -182,7 +184,7 @@ uv run nemoscribe \
     video_dir="C:\Path\To\Season1" \
     output_dir="C:\Path\To\Subtitles" \
     vad.enabled=true \
-    vad.onset=0.1 \
+    vad.onset=0.2 \
     vad.offset=0.1 \
     vad.min_duration_on=0.1 \
     vad.filter_speech_first=false \
@@ -210,9 +212,9 @@ audio.max_chunk_duration=30  # 從 60 秒改為 30 秒
 ### Q: 為什麼有些對話還是被漏掉了？
 **A:** 嘗試調低 VAD 靈敏度門檻：
 ```bash
-vad.onset=0.05  # 從 0.1 調到 0.05，更加敏感
+vad.onset=0.15  # 從 0.2 調到 0.15，更加敏感
 ```
-注意：過低可能會把雜音也辨識進來。
+注意：過低（如 0.1 以下）可能會把雜音也辨識進來，且時間戳記準確度會下降。
 
 ### Q: 可以處理非英文的影片嗎？
 **A:** `parakeet-tdt-0.6b-v2` 模型專為英文優化。處理其他語言建議使用對應的多語言模型。

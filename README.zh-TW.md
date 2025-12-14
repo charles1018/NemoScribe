@@ -179,11 +179,11 @@ uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   audio.smart_segmentation=true
 
-# 調整 VAD 靈敏度（數值越低越靈敏）
+# 調整 VAD 靈敏度（戲劇/電影最佳化設定）
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   vad.onset=0.2 \
-  vad.offset=0.2
+  vad.offset=0.1
 ```
 
 ### ITN（逆文字正規化）
