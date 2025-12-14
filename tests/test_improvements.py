@@ -573,11 +573,11 @@ def run_all_tests() -> List[TestResult]:
         try:
             result = test_func()
             results.append(result)
-            status = "✓ PASS" if result.passed else "✗ FAIL"
+            status = "[PASS]" if result.passed else "[FAIL]"
             print(f"  {status}: {result.message}")
         except Exception as e:
             results.append(TestResult(name=name, passed=False, message=f"Unexpected error: {e}"))
-            print(f"  ✗ FAIL: Unexpected error: {e}")
+            print(f"  [FAIL]: Unexpected error: {e}")
 
     return results
 

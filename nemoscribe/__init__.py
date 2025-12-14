@@ -7,7 +7,70 @@ Convert video files to SRT subtitles using NVIDIA NeMo ASR models.
 __version__ = "0.1.0"
 __author__ = "charles1018"
 
-# Only export CLI entry point
+# CLI entry point
 from nemoscribe.cli import main
 
-__all__ = ["main", "__version__"]
+# Configuration classes (for testing and advanced usage)
+from nemoscribe.config import (
+    AudioConfig,
+    DecodingConfig,
+    LoggingConfig,
+    PerformanceConfig,
+    PostProcessingConfig,
+    SubtitleConfig,
+    VADConfig,
+    VideoToSRTConfig,
+)
+
+# SRT formatting functions
+from nemoscribe.srt import (
+    clip_segments_to_window,
+    format_srt_timestamp,
+    hypothesis_to_srt_segments,
+    write_srt_file,
+)
+
+# Post-processing functions
+from nemoscribe.postprocess import (
+    apply_itn,
+    apply_itn_to_segments,
+    deduplicate_segments,
+    get_itn_normalizer,
+    merge_overlapping_segments,
+)
+
+# VAD functions
+from nemoscribe.vad import (
+    find_optimal_split_points,
+    get_silence_gaps_from_speech,
+)
+
+__all__ = [
+    # Version info
+    "__version__",
+    # CLI
+    "main",
+    # Config classes
+    "VideoToSRTConfig",
+    "SubtitleConfig",
+    "AudioConfig",
+    "VADConfig",
+    "PostProcessingConfig",
+    "DecodingConfig",
+    "PerformanceConfig",
+    "LoggingConfig",
+    # SRT functions
+    "format_srt_timestamp",
+    "hypothesis_to_srt_segments",
+    "write_srt_file",
+    "clip_segments_to_window",
+    # Post-processing functions
+    "get_itn_normalizer",
+    "apply_itn",
+    "apply_itn_to_segments",
+    "merge_overlapping_segments",
+    "deduplicate_segments",
+    # VAD functions
+    "find_optimal_split_points",
+    "get_silence_gaps_from_speech",
+]
