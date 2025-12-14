@@ -1,6 +1,6 @@
 [project]
 name = "nemoscribe"
-version = "0.1.0"
+version = "0.2.0"
 description = "Convert video files to SRT subtitles using NVIDIA NeMo ASR models with accurate timestamps"
 readme = "README.md"
 license = "MIT"
