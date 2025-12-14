@@ -19,8 +19,10 @@ dependencies = [
 # e.g., "twenty five dollars" -> "$25"
 # Note: pynini dependency can be tricky to install on some systems
 itn = ["nemo_text_processing>=1.0.0"]
+# Benchmark evaluation tools
+benchmark = ["jiwer>=3.0.0"]
 # All optional features
-all = ["nemo_text_processing>=1.0.0"]
+all = ["nemo_text_processing>=1.0.0", "jiwer>=3.0.0"]
 
 
 [project.scripts]

@@ -179,11 +179,11 @@ uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   audio.smart_segmentation=true
 
-# Adjust VAD sensitivity (lower = more sensitive)
+# Adjust VAD sensitivity (optimized for drama/movie)
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   vad.onset=0.2 \
-  vad.offset=0.2
+  vad.offset=0.1
 ```
 
 ### ITN (Inverse Text Normalization)
