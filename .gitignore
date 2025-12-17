@@ -38,11 +38,6 @@ env/
 .env.local
 .env.*.local
 
-# Claude Code (local development only)
-CLAUDE.md
-GEMINI.md
-.claude/
-
 # OS generated files
 .DS_Store
 .DS_Store?
