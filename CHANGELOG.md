@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-12-22
+
+### Added
+
+- Parameter benchmark tools for testing and optimizing VAD settings (`scripts/evaluate_benchmark.py`)
+
+### Fixed
+
+- Error handling for temp directory cleanup on Windows
+- RTFx division by zero when audio duration is very short
+- Batch processing now continues after single file errors
+
+### Changed
+
+- Add type hints to VAD module functions
+- Simplified gitignore configuration
+
 ## [0.2.0] - 2025-12-14
 
 ### Changed
