@@ -513,11 +513,14 @@ def transcribe_video(
         # Report RTFx if measured
         if cfg.performance.calculate_rtfx and transcription_times and video_duration > 0:
             total_transcription_time = sum(transcription_times)
-            rtfx = video_duration / total_transcription_time
-            logging.info(
-                f"Performance: RTFx={rtfx:.2f}x realtime "
-                f"(transcribed {video_duration:.1f}s in {total_transcription_time:.2f}s)"
-            )
+            if total_transcription_time > 0:
+                rtfx = video_duration / total_transcription_time
+                logging.info(
+                    f"Performance: RTFx={rtfx:.2f}x realtime "
+                    f"(transcribed {video_duration:.1f}s in {total_transcription_time:.2f}s)"
+                )
+            else:
+                logging.warning("RTFx calculation skipped: transcription time too small")
 
         return output_path
 
@@ -528,7 +531,10 @@ def transcribe_video(
 
         # Cleanup temporary files
         if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
+            try:
+                shutil.rmtree(tmp_dir)
+            except OSError as e:
+                logging.warning(f"Failed to cleanup temporary directory {tmp_dir}: {e}")
 
         # Clear GPU memory
         if device.type == "cuda":
