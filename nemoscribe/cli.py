@@ -207,6 +207,7 @@ def process_videos(cfg: VideoToSRTConfig) -> List[str]:
             logging.error(f"Failed to process {video_path}: {e}")
             import traceback
             traceback.print_exc()
+            continue
 
     return generated_files
 
