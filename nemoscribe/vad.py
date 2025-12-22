@@ -30,7 +30,7 @@ This module handles:
 """
 
 import os
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import torch
 
@@ -47,7 +47,7 @@ from nemoscribe.config import AudioConfig, VADConfig
 def load_vad_model(
     model_name: str,
     device: torch.device,
-):
+) -> Any:
     """
     Load VAD model from pretrained name or local path.
 
@@ -56,7 +56,7 @@ def load_vad_model(
         device: Target device
 
     Returns:
-        Loaded VAD model
+        Loaded VAD model (NeMo EncDecClassificationModel)
     """
     logging.info(f"Loading VAD model: {model_name}")
     vad_model = init_frame_vad_model(model_name)
@@ -67,7 +67,7 @@ def load_vad_model(
 
 def run_vad_on_audio(
     audio_path: str,
-    vad_model,
+    vad_model: Any,
     vad_cfg: VADConfig,
     device: torch.device,
 ) -> List[Tuple[float, float]]:
