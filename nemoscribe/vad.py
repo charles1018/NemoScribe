@@ -401,6 +401,6 @@ def create_audio_chunks_with_vad(
         ):
             chunks.append((audio_path, chunk_start, chunk_end, extract_start))
         else:
-            logging.warning(f"Failed to extract VAD chunk {i}")
+            raise RuntimeError(f"Failed to extract VAD chunk {i} from {video_path}")
 
     return chunks

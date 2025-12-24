@@ -159,7 +159,7 @@ def create_audio_chunks(
             chunks.append((audio_path, current_start, chunk_end, extract_start))
             chunk_idx += 1
         else:
-            logging.warning(f"Failed to extract chunk {chunk_idx}")
+            raise RuntimeError(f"Failed to extract chunk {chunk_idx} from {video_path}")
 
         current_start = chunk_end
 
