@@ -183,7 +183,10 @@ uv run nemoscribe video_path=video.mp4 \
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   vad.onset=0.2 \
-  vad.offset=0.1
+  vad.offset=0.1 \
+  vad.min_duration_off=0.05 \
+  vad.pad_onset=0.1 \
+  vad.pad_offset=0.1
 ```
 
 ### ITN (Inverse Text Normalization)

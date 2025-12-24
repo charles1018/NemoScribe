@@ -71,6 +71,9 @@ uv run nemoscribe \
     vad.onset=0.2 \
     vad.offset=0.1 \
     vad.min_duration_on=0.1 \
+    vad.min_duration_off=0.05 \
+    vad.pad_onset=0.1 \
+    vad.pad_offset=0.1 \
     vad.filter_speech_first=false \
     audio.max_chunk_duration=60 \
     audio.smart_segmentation=true \
@@ -83,6 +86,9 @@ uv run nemoscribe \
 | `vad.onset` | `0.2` | **經測試驗證最佳值**。平衡靈敏度與準確度，WER 最低且時間戳記最準確。 |
 | `vad.offset` | `0.1` | **較低的結束門檻**。確保捕捉完整語句結尾。 |
 | `vad.min_duration_on` | `0.1` | 保留極短促的發音，低於 0.1 秒通常是雜訊。 |
+| `vad.min_duration_off` | `0.05` | **防止對話合併**。預設 0.2s 會將短停頓（如對話間的換氣）合併，造成 40+ 秒的超長片段。降至 0.05 可改善 35%。 |
+| `vad.pad_onset` | `0.1` | 從預設 0.2 降低，減少段落前的 padding，避免重疊。 |
+| `vad.pad_offset` | `0.1` | 從預設 0.2 降低，減少段落後的 padding，避免重疊。 |
 | `vad.filter_speech_first` | `false` | **不強行過濾**。避免誤刪背景吵雜的對話。 |
 | `postprocessing.enable_itn` | `false` | 戲劇對白通常不需要將數字轉為阿拉伯數字。 |
 
@@ -187,6 +193,9 @@ uv run nemoscribe \
     vad.onset=0.2 \
     vad.offset=0.1 \
     vad.min_duration_on=0.1 \
+    vad.min_duration_off=0.05 \
+    vad.pad_onset=0.1 \
+    vad.pad_offset=0.1 \
     vad.filter_speech_first=false \
     audio.max_chunk_duration=60 \
     audio.smart_segmentation=true \
