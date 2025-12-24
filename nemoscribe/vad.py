@@ -97,8 +97,12 @@ def run_vad_on_audio(
     input_length = torch.tensor([waveform.shape[1]], device=device)
 
     # Run VAD inference
+    use_autocast = device.type == "cuda"
     with torch.inference_mode():
-        with torch.amp.autocast(device.type):
+        if use_autocast:
+            with torch.amp.autocast(device.type):
+                log_probs = vad_model(input_signal=waveform, input_signal_length=input_length)
+        else:
             log_probs = vad_model(input_signal=waveform, input_signal_length=input_length)
 
         # Convert log probabilities to probabilities
