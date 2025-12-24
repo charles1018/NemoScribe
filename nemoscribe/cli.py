@@ -31,7 +31,7 @@ This module handles:
 
 import sys
 from pathlib import Path
-from typing import List
+from typing import Any, List, Union, get_args, get_origin, get_type_hints
 
 import torch
 from omegaconf import OmegaConf
@@ -212,6 +212,61 @@ def process_videos(cfg: VideoToSRTConfig) -> List[str]:
     return generated_files
 
 
+_NONE_STRINGS = {"null", "none"}
+
+
+def _is_optional_type(target_type: Any) -> bool:
+    origin = get_origin(target_type)
+    if origin is None:
+        return False
+    args = get_args(target_type)
+    return origin is Union and type(None) in args
+
+
+def _unwrap_optional(target_type: Any) -> Any:
+    if not _is_optional_type(target_type):
+        return target_type
+    return next(t for t in get_args(target_type) if t is not type(None))
+
+
+def _coerce_value(value: str, target_type: Any) -> Any:
+    value_lower = value.lower()
+    if value_lower in _NONE_STRINGS and _is_optional_type(target_type):
+        return None
+
+    target_type = _unwrap_optional(target_type)
+    origin = get_origin(target_type)
+    args = get_args(target_type)
+
+    if origin in (list, List):
+        item_type = args[0] if args else str
+        if value == "":
+            return []
+        return [_coerce_value(part, item_type) for part in value.split(",")]
+
+    if target_type is bool:
+        return value_lower in ("true", "1", "yes", "y", "on")
+    if target_type is int:
+        return int(value)
+    if target_type is float:
+        return float(value)
+    if target_type is str:
+        return value
+    if target_type is Any:
+        return value
+
+    return value
+
+
+def _set_typed_attr(obj: Any, attr_name: str, value: str) -> bool:
+    hints = get_type_hints(type(obj))
+    if attr_name not in hints:
+        return False
+    target_type = hints[attr_name]
+    setattr(obj, attr_name, _coerce_value(value, target_type))
+    return True
+
+
 def parse_args(args: List[str], cfg: VideoToSRTConfig) -> VideoToSRTConfig:
     """
     Parse Hydra-style key=value arguments into configuration.
@@ -231,41 +286,14 @@ def parse_args(args: List[str], cfg: VideoToSRTConfig) -> VideoToSRTConfig:
 
         # Handle nested keys (e.g., subtitle.max_chars_per_line)
         if "." in key:
-            parts = key.split(".")
-            if len(parts) == 2:
-                parent, child = parts
-                if hasattr(cfg, parent):
-                    parent_obj = getattr(cfg, parent)
-                    if hasattr(parent_obj, child):
-                        # Convert value to appropriate type
-                        current_value = getattr(parent_obj, child)
-                        if current_value is None or isinstance(current_value, str):
-                            if value.lower() == "null" or value.lower() == "none":
-                                setattr(parent_obj, child, None)
-                            else:
-                                setattr(parent_obj, child, value)
-                        elif isinstance(current_value, bool):
-                            setattr(parent_obj, child, value.lower() in ("true", "1", "yes"))
-                        elif isinstance(current_value, int):
-                            setattr(parent_obj, child, int(value))
-                        elif isinstance(current_value, float):
-                            setattr(parent_obj, child, float(value))
+            parent, child = key.split(".", 1)
+            if hasattr(cfg, parent):
+                parent_obj = getattr(cfg, parent)
+                if hasattr(parent_obj, child):
+                    _set_typed_attr(parent_obj, child, value)
         else:
             if hasattr(cfg, key):
-                current_value = getattr(cfg, key)
-                if current_value is None or isinstance(current_value, str):
-                    if value.lower() == "null" or value.lower() == "none":
-                        setattr(cfg, key, None)
-                    else:
-                        setattr(cfg, key, value)
-                elif isinstance(current_value, bool):
-                    setattr(cfg, key, value.lower() in ("true", "1", "yes"))
-                elif isinstance(current_value, int):
-                    setattr(cfg, key, int(value))
-                elif isinstance(current_value, float):
-                    setattr(cfg, key, float(value))
-                elif isinstance(current_value, list):
-                    setattr(cfg, key, value.split(","))
+                _set_typed_attr(cfg, key, value)
 
     return cfg
 
