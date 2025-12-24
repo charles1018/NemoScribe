@@ -8,8 +8,7 @@ Compares generated SRT files against a reference (human-made) subtitle file.
 Calculates WER (Word Error Rate) and timestamp offset metrics.
 
 Usage:
-    cd <project_directory>
-    uv run python scripts/evaluate_benchmark.py
+    uv run python scripts/evaluate_benchmark.py --test-dir <dir> --reference <ref.srt>
 
 Requirements:
     uv sync --extra benchmark  (installs jiwer)
@@ -317,13 +316,13 @@ def main():
     parser.add_argument(
         '--test-dir',
         type=Path,
-        default=Path(r'<test_directory>'),
+        required=True,
         help='Directory containing test SRT files'
     )
     parser.add_argument(
         '--reference',
         type=Path,
-        default=Path(r'<video_directory>\Chicago.Fire.S12E01.1080p.WEB.h264-ETHEL.ENG.srt'),
+        required=True,
         help='Reference (human-made) SRT file'
     )
     parser.add_argument(

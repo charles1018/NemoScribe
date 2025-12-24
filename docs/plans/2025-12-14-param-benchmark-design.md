@@ -24,13 +24,13 @@ decoding.rnnt_timestamp_type="segment"
 ```
 
 ### Test Material
-- Video: `<video_directory>\Chicago.Fire.S12E01.1080p.WEB.h264-ETHEL[EZTVx.to].mkv`
-- Reference: `<video_directory>\Chicago.Fire.S12E01.1080p.WEB.h264-ETHEL.ENG.srt`
+- Video: Your test video file (e.g., `test_video.mkv`)
+- Reference: Human-made subtitle file (e.g., `reference.srt`)
 
 ## File Structure
 
 ```
-<test_directory>\
+<test_directory>/
 ├── onset0.1_offset0.1.srt
 ├── onset0.1_offset0.2.srt
 ├── onset0.1_offset0.3.srt
@@ -46,13 +46,13 @@ decoding.rnnt_timestamp_type="segment"
 ## Implementation
 
 ### 1. run_benchmark.bat
-- Location: `<test_directory>\run_benchmark.bat`
+- Create in your test directory
 - Iterates through onset/offset combinations
 - Calls `uv run nemoscribe` for each combination
 - Estimated runtime: ~1 hour (9 tests × 5-8 min each)
 
 ### 2. scripts/evaluate_benchmark.py
-- Location: `<project_directory>\scripts\evaluate_benchmark.py`
+- Located in `scripts/evaluate_benchmark.py`
 - Parses SRT files
 - Calculates WER using `jiwer` library
 - Analyzes timestamp offsets
@@ -78,10 +78,9 @@ score = (1 - WER) * 0.7 + timing_accuracy * 0.3
 ## Usage
 
 ```batch
-# Step 1: Run benchmark (from param_test directory)
+# Step 1: Run benchmark (from your test directory)
 run_benchmark.bat
 
 # Step 2: Evaluate results (from project directory)
-cd <project_directory>
-uv run python scripts/evaluate_benchmark.py
+uv run python scripts/evaluate_benchmark.py --test-dir <test_directory> --reference <reference.srt>
 ```
