@@ -99,7 +99,9 @@ def process_videos(cfg: VideoToSRTConfig) -> List[str]:
         raise ValueError("Either video_path or video_dir must be specified")
 
     if not check_ffmpeg():
-        raise RuntimeError("ffmpeg is required but not found. Please install ffmpeg.")
+        raise RuntimeError(
+            "ffmpeg/ffprobe are required but not found. Please install ffmpeg."
+        )
 
     # Setup device
     torch.set_float32_matmul_precision(cfg.matmul_precision)

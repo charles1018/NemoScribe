@@ -306,7 +306,14 @@ def transcribe_video(
     try:
         # Get video duration
         video_duration = get_media_duration(video_path)
-        logging.info(f"Video duration: {video_duration:.1f} seconds ({video_duration/60:.1f} minutes)")
+        if video_duration <= 0:
+            raise RuntimeError(
+                "Failed to determine video duration. Ensure ffprobe is available "
+                "and the input file is valid."
+            )
+        logging.info(
+            f"Video duration: {video_duration:.1f} seconds ({video_duration/60:.1f} minutes)"
+        )
 
         # Determine if we need chunking
         max_chunk = cfg.audio.max_chunk_duration

@@ -33,17 +33,17 @@ from typing import List, Optional, Tuple
 from nemo.utils import logging
 
 
-def check_ffmpeg() -> bool:
-    """Check if ffmpeg is available."""
+def _check_binary(binary: str) -> bool:
     try:
-        subprocess.run(
-            ["ffmpeg", "-version"],
-            capture_output=True,
-            check=True,
-        )
+        subprocess.run([binary, "-version"], capture_output=True, check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
+
+
+def check_ffmpeg() -> bool:
+    """Check if ffmpeg and ffprobe are available."""
+    return _check_binary("ffmpeg") and _check_binary("ffprobe")
 
 
 def get_media_duration(file_path: str) -> float:
