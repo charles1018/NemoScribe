@@ -390,7 +390,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# 可用測試：baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, full
+# 可用測試：baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge_cases, path_validation, cli_config_override, full
 ```
 
 ### 測試涵蓋範圍
@@ -404,6 +404,9 @@ uv run python tests/test_improvements.py --test metrics
 - **performance_config**：效能設定
 - **quality_metrics**：WER/CER 計算
 - **srt_formatting**：SRT 格式化
+- **srt_edge_cases**：SRT 邊界情況處理（空片段、特殊字元）
+- **path_validation**：路徑驗證與安全檢查
+- **cli_config_override**：CLI 設定覆寫功能
 - **full_config**：完整設定組合
 
 ## 品質指標

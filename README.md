@@ -390,7 +390,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# Available tests: baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, full
+# Available tests: baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge_cases, path_validation, cli_config_override, full
 ```
 
 ### Test Coverage
@@ -404,6 +404,9 @@ uv run python tests/test_improvements.py --test metrics
 - **performance_config**: Performance configuration
 - **quality_metrics**: WER/CER calculation
 - **srt_formatting**: SRT formatting
+- **srt_edge_cases**: SRT edge case handling (empty segments, special characters)
+- **path_validation**: Path validation and security checks
+- **cli_config_override**: CLI configuration override functionality
 - **full_config**: Complete configuration combination
 
 ## Quality Metrics

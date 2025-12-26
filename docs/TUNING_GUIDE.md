@@ -226,7 +226,14 @@ vad.onset=0.15  # 從 0.2 調到 0.15，更加敏感
 注意：過低（如 0.1 以下）可能會把雜音也辨識進來，且時間戳記準確度會下降。
 
 ### Q: 可以處理非英文的影片嗎？
-**A:** `parakeet-tdt-0.6b-v2` 模型專為英文優化。處理其他語言建議使用對應的多語言模型。
+**A:** `parakeet-tdt-0.6b-v2` 模型專為英文優化。處理其他語言建議使用：
+- `nvidia/parakeet-tdt-0.6b-v3`：支援 25 種語言，自動語言偵測
+- `nvidia/canary-1b-v2`：支援 25 種語言，並可進行翻譯
+
+使用方式：
+```bash
+uv run nemoscribe video_path="影片.mp4" pretrained_name="nvidia/parakeet-tdt-0.6b-v3"
+```
 
 ### Q: 如何確認 CUDA/GPU 是否正常運作？
 **A:** 執行以下指令檢查：
