@@ -514,6 +514,181 @@ def test_srt_formatting() -> TestResult:
         )
 
 
+def test_srt_edge_cases() -> TestResult:
+    """Test SRT timestamp formatting edge cases."""
+    from nemoscribe import format_srt_timestamp
+
+    try:
+        # Test negative values (should clamp to 0)
+        result = format_srt_timestamp(-1.0)
+        assert result == "00:00:00,000", f"Negative time should clamp to 0, got {result}"
+
+        # Test very large values (e.g., 24+ hours)
+        result = format_srt_timestamp(90061.999)  # 25 hours, 1 min, 1.999 sec
+        assert "25:01:01" in result, f"Large time should work, got {result}"
+
+        # Test millisecond precision (allow for floating-point rounding)
+        # 1.5 seconds should produce ,500
+        result = format_srt_timestamp(1.5)
+        assert result == "00:00:01,500", f"Expected 500ms, got {result}"
+
+        # Test half-second boundary
+        result = format_srt_timestamp(2.25)
+        assert result == "00:00:02,250", f"Expected 250ms, got {result}"
+
+        # Test exactly on second boundary
+        result = format_srt_timestamp(60.0)
+        assert result == "00:01:00,000", f"Expected exact minute, got {result}"
+
+        # Test hour boundary
+        result = format_srt_timestamp(3600.0)
+        assert result == "01:00:00,000", f"Expected exact hour, got {result}"
+
+        return TestResult(
+            name="srt_edge_cases",
+            passed=True,
+            message="SRT edge cases handled correctly",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="srt_edge_cases",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="srt_edge_cases",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
+def test_path_validation() -> TestResult:
+    """Test path validation for audio module."""
+    from nemoscribe.audio import validate_media_path
+
+    try:
+        # Test empty path
+        try:
+            validate_media_path("")
+            assert False, "Empty path should raise ValueError"
+        except ValueError:
+            pass  # Expected
+
+        # Test whitespace-only path
+        try:
+            validate_media_path("   ")
+            assert False, "Whitespace path should raise ValueError"
+        except ValueError:
+            pass  # Expected
+
+        # Test non-existent file
+        try:
+            validate_media_path("/nonexistent/path/to/file.mp4", must_exist=True)
+            assert False, "Non-existent file should raise FileNotFoundError"
+        except FileNotFoundError:
+            pass  # Expected
+
+        # Test with must_exist=False (path doesn't need to exist)
+        result = validate_media_path("/some/path/file.mp4", must_exist=False)
+        assert result is not None, "Path should be returned when must_exist=False"
+
+        # Test valid path (use temp file)
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            temp_path = f.name
+            f.write(b"test")
+
+        try:
+            result = validate_media_path(temp_path, must_exist=True)
+            assert result.exists(), "Resolved path should exist"
+            assert result.is_absolute(), "Resolved path should be absolute"
+        finally:
+            Path(temp_path).unlink()  # Cleanup
+
+        return TestResult(
+            name="path_validation",
+            passed=True,
+            message="Path validation works correctly",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="path_validation",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="path_validation",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
+def test_cli_config_override() -> TestResult:
+    """Test CLI configuration override parsing."""
+    from nemoscribe import VideoToSRTConfig
+    from nemoscribe.cli import parse_args
+
+    try:
+        # Test basic string override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["video_path=test.mp4"], cfg)
+        assert cfg.video_path == "test.mp4", f"Expected test.mp4, got {cfg.video_path}"
+
+        # Test boolean override (true)
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["vad.enabled=true"], cfg)
+        assert cfg.vad.enabled is True, f"Expected True, got {cfg.vad.enabled}"
+
+        # Test boolean override (false)
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["vad.enabled=false"], cfg)
+        assert cfg.vad.enabled is False, f"Expected False, got {cfg.vad.enabled}"
+
+        # Test numeric float override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["vad.onset=0.3"], cfg)
+        assert cfg.vad.onset == 0.3, f"Expected 0.3, got {cfg.vad.onset}"
+
+        # Test numeric int override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["audio.max_chunk_duration=120"], cfg)
+        assert cfg.audio.max_chunk_duration == 120, f"Expected 120, got {cfg.audio.max_chunk_duration}"
+
+        # Test null value
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["subtitle.word_gap_threshold=null"], cfg)
+        assert cfg.subtitle.word_gap_threshold is None, f"Expected None, got {cfg.subtitle.word_gap_threshold}"
+
+        # Test multiple overrides
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["video_path=video.mp4", "vad.enabled=true", "vad.onset=0.2"], cfg)
+        assert cfg.video_path == "video.mp4"
+        assert cfg.vad.enabled is True
+        assert cfg.vad.onset == 0.2
+
+        return TestResult(
+            name="cli_config_override",
+            passed=True,
+            message="CLI config overrides parsed correctly",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="cli_config_override",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="cli_config_override",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
 def test_full_config() -> TestResult:
     """Test full VideoToSRTConfig with all sub-configs."""
     from nemoscribe import VideoToSRTConfig
@@ -572,6 +747,9 @@ def run_all_tests() -> List[TestResult]:
         ("performance_config", test_performance_config),
         ("quality_metrics", test_quality_metrics),
         ("srt_formatting", test_srt_formatting),
+        ("srt_edge_cases", test_srt_edge_cases),
+        ("path_validation", test_path_validation),
+        ("cli_config_override", test_cli_config_override),
         ("full_config", test_full_config),
     ]
 
@@ -633,6 +811,9 @@ def main():
             "performance": test_performance_config,
             "metrics": test_quality_metrics,
             "srt": test_srt_formatting,
+            "srt_edge": test_srt_edge_cases,
+            "path": test_path_validation,
+            "cli": test_cli_config_override,
             "full": test_full_config,
         }
 
