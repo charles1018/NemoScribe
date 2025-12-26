@@ -28,9 +28,45 @@ This module handles all ffmpeg operations for audio extraction and splitting.
 
 import os
 import subprocess
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from nemo.utils import logging
+
+
+def validate_media_path(file_path: str, must_exist: bool = True) -> Path:
+    """
+    Validate and resolve a media file path for safe subprocess usage.
+
+    Args:
+        file_path: Path to validate
+        must_exist: If True, raise error if file doesn't exist
+
+    Returns:
+        Resolved absolute Path object
+
+    Raises:
+        ValueError: If path is invalid or doesn't meet requirements
+        FileNotFoundError: If must_exist=True and file doesn't exist
+    """
+    if not file_path or not file_path.strip():
+        raise ValueError("File path cannot be empty")
+
+    path = Path(file_path)
+
+    # Resolve to absolute path (also normalizes .. and symlinks)
+    try:
+        resolved = path.resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Invalid path '{file_path}': {e}")
+
+    if must_exist:
+        if not resolved.exists():
+            raise FileNotFoundError(f"File not found: {resolved}")
+        if not resolved.is_file():
+            raise ValueError(f"Path is not a regular file: {resolved}")
+
+    return resolved
 
 
 def _check_binary(binary: str) -> bool:
@@ -47,13 +83,28 @@ def check_ffmpeg() -> bool:
 
 
 def get_media_duration(file_path: str) -> float:
-    """Get media file duration in seconds using ffprobe."""
+    """
+    Get media file duration in seconds using ffprobe.
+
+    Args:
+        file_path: Path to media file
+
+    Returns:
+        Duration in seconds, or 0.0 if unable to determine
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        ValueError: If path is invalid
+    """
+    # Validate and resolve path before passing to subprocess
+    resolved_path = validate_media_path(file_path, must_exist=True)
+
     cmd = [
         "ffprobe",
         "-v", "error",
         "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
-        file_path,
+        str(resolved_path),
     ]
     try:
         result = subprocess.run(cmd, capture_output=True, check=True, text=True)
@@ -82,14 +133,27 @@ def extract_audio(
 
     Returns:
         True if successful
+
+    Raises:
+        FileNotFoundError: If video file doesn't exist
+        ValueError: If paths are invalid
     """
+    # Validate input path (must exist)
+    resolved_video = validate_media_path(video_path, must_exist=True)
+
+    # Validate output path (parent directory must exist, file may not)
+    output_path = Path(audio_path)
+    if not output_path.parent.exists():
+        raise ValueError(f"Output directory does not exist: {output_path.parent}")
+    resolved_audio = output_path.resolve()
+
     cmd = ["ffmpeg"]
 
     # Add seek before input for efficiency
     if start_time is not None:
         cmd.extend(["-ss", str(start_time)])
 
-    cmd.extend(["-i", video_path])
+    cmd.extend(["-i", str(resolved_video)])
 
     if duration is not None:
         cmd.extend(["-t", str(duration)])
@@ -100,7 +164,7 @@ def extract_audio(
         "-ar", str(sample_rate),  # Sample rate
         "-ac", "1",  # Mono
         "-y",  # Overwrite output
-        audio_path,
+        str(resolved_audio),
     ])
 
     try:
@@ -133,7 +197,18 @@ def create_audio_chunks(
     Returns:
         List of (audio_path, chunk_start_time, chunk_end_time, extract_start_time) tuples
         where chunk_start_time and chunk_end_time are the times in the original video
+
+    Raises:
+        FileNotFoundError: If video file doesn't exist
+        ValueError: If paths are invalid or output_dir doesn't exist
     """
+    # Validate output directory exists
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        raise ValueError(f"Output directory does not exist: {output_dir}")
+    if not output_path.is_dir():
+        raise ValueError(f"Output path is not a directory: {output_dir}")
+
     chunks = []
     chunk_idx = 0
     current_start = 0.0
