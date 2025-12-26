@@ -39,13 +39,13 @@ from typing import List, Optional, Tuple
 
 import torch
 
-from nemo.collections.asr.models import ASRModel
+from nemo.collections.asr.models import ASRModel, EncDecClassificationModel
 from nemo.utils import logging
 
 from nemoscribe.audio import create_audio_chunks, extract_audio, get_media_duration
 from nemoscribe.config import DecodingConfig, VideoToSRTConfig
 from nemoscribe.log_utils import suppress_repetitive_nemo_logs
-from nemoscribe.postprocess import apply_itn_to_segments, deduplicate_segments, merge_overlapping_segments
+from nemoscribe.postprocess import ITNNormalizer, apply_itn_to_segments, deduplicate_segments, merge_overlapping_segments
 from nemoscribe.srt import clip_segments_to_window, hypothesis_to_srt_segments, write_srt_file
 from nemoscribe.vad import create_audio_chunks_with_vad, run_vad_on_audio
 
@@ -274,8 +274,8 @@ def transcribe_video(
     asr_model: ASRModel,
     cfg: VideoToSRTConfig,
     device: torch.device,
-    vad_model=None,
-    itn_normalizer=None,
+    vad_model: Optional[EncDecClassificationModel] = None,
+    itn_normalizer: Optional[ITNNormalizer] = None,
 ) -> str:
     """
     Transcribe a single video file to SRT.

@@ -30,10 +30,11 @@ This module handles:
 """
 
 import os
-from typing import Any, List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
 import torch
 
+from nemo.collections.asr.models import EncDecClassificationModel
 from nemo.collections.asr.parts.utils.vad_utils import (
     generate_vad_segment_table_per_tensor,
     init_frame_vad_model,
@@ -43,11 +44,14 @@ from nemo.utils import logging
 from nemoscribe.audio import create_audio_chunks, extract_audio
 from nemoscribe.config import AudioConfig, VADConfig
 
+if TYPE_CHECKING:
+    pass  # Reserved for future type-only imports
+
 
 def load_vad_model(
     model_name: str,
     device: torch.device,
-) -> Any:
+) -> EncDecClassificationModel:
     """
     Load VAD model from pretrained name or local path.
 
@@ -67,7 +71,7 @@ def load_vad_model(
 
 def run_vad_on_audio(
     audio_path: str,
-    vad_model: Any,
+    vad_model: EncDecClassificationModel,
     vad_cfg: VADConfig,
     device: torch.device,
 ) -> List[Tuple[float, float]]:

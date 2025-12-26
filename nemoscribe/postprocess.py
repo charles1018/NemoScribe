@@ -28,23 +28,26 @@ This module handles:
 - Segment merging and deduplication
 """
 
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from nemo.utils import logging
 
+
+# Type alias for ITN normalizer (InverseNormalizer from nemo_text_processing)
+ITNNormalizer = Any
 
 # =============================================================================
 # ITN (Inverse Text Normalization) Utilities
 # =============================================================================
 
 # Global cache for ITN normalizer to avoid reloading
-_ITN_NORMALIZER_CACHE = {}
+_ITN_NORMALIZER_CACHE: Dict[str, Optional[ITNNormalizer]] = {}
 
 
 def get_itn_normalizer(
     lang: str = "en",
     input_case: str = "lower_cased",
-):
+) -> Optional[ITNNormalizer]:
     """
     Get ITN normalizer if available, otherwise return None.
 
@@ -88,7 +91,7 @@ def get_itn_normalizer(
         return None
 
 
-def apply_itn(text: str, normalizer) -> str:
+def apply_itn(text: str, normalizer: Optional[ITNNormalizer]) -> str:
     """
     Apply Inverse Text Normalization to text.
 
@@ -120,7 +123,7 @@ def apply_itn(text: str, normalizer) -> str:
 
 def apply_itn_to_segments(
     segments: List[Tuple[float, float, str]],
-    normalizer,
+    normalizer: Optional[ITNNormalizer],
 ) -> List[Tuple[float, float, str]]:
     """
     Apply ITN to all segments.
