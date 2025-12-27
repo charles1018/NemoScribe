@@ -293,9 +293,15 @@ def parse_args(args: List[str], cfg: VideoToSRTConfig) -> VideoToSRTConfig:
                 parent_obj = getattr(cfg, parent)
                 if hasattr(parent_obj, child):
                     _set_typed_attr(parent_obj, child, value)
+                else:
+                    logging.warning(f"Unknown config key: '{key}' ('{child}' not found in {parent})")
+            else:
+                logging.warning(f"Unknown config key: '{key}' ('{parent}' not found in config)")
         else:
             if hasattr(cfg, key):
                 _set_typed_attr(cfg, key, value)
+            else:
+                logging.warning(f"Unknown config key: '{key}'")
 
     return cfg
 
