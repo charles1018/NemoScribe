@@ -219,6 +219,15 @@ _NONE_STRINGS = {"null", "none"}
 
 
 def _is_optional_type(target_type: Any) -> bool:
+    """
+    Check if a type annotation is Optional (Union with None).
+
+    Args:
+        target_type: Type annotation to check
+
+    Returns:
+        True if type is Optional[T], False otherwise
+    """
     origin = get_origin(target_type)
     if origin is None:
         return False
@@ -227,12 +236,39 @@ def _is_optional_type(target_type: Any) -> bool:
 
 
 def _unwrap_optional(target_type: Any) -> Any:
+    """
+    Extract the inner type from Optional[T].
+
+    Args:
+        target_type: Type annotation to unwrap
+
+    Returns:
+        T if input is Optional[T], otherwise returns input unchanged
+    """
     if not _is_optional_type(target_type):
         return target_type
     return next(t for t in get_args(target_type) if t is not type(None))
 
 
 def _coerce_value(value: str, target_type: Any) -> Any:
+    """
+    Convert string value to target type using type introspection.
+
+    Supports: bool, int, float, str, list, Enum, Optional, Any
+    Handles null values for Optional types.
+    Provides helpful error messages for Enum types.
+
+    Args:
+        value: String value from command line
+        target_type: Target type annotation from dataclass field
+
+    Returns:
+        Value converted to target_type
+
+    Raises:
+        ValueError: For invalid Enum values (with list of valid options)
+        ValueError/TypeError: For other type conversion failures
+    """
     value_lower = value.lower()
     if value_lower in _NONE_STRINGS and _is_optional_type(target_type):
         return None
@@ -279,6 +315,20 @@ def _coerce_value(value: str, target_type: Any) -> Any:
 
 
 def _set_typed_attr(obj: Any, attr_name: str, value: str) -> bool:
+    """
+    Set object attribute with automatic type coercion based on type hints.
+
+    Uses get_type_hints() to determine the target type and _coerce_value()
+    to convert the string value appropriately.
+
+    Args:
+        obj: Object to modify (typically a dataclass instance)
+        attr_name: Attribute name to set
+        value: String value from command line
+
+    Returns:
+        True if attribute was set, False if attribute not found in type hints
+    """
     hints = get_type_hints(type(obj))
     if attr_name not in hints:
         return False
