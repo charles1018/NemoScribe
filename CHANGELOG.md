@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- CLI parser now warns about unknown config keys to catch typos (e.g., `vad.onst` instead of `vad.onset`)
+- Enum type support in CLI type coercion with case-insensitive parsing
+- Comprehensive docstrings for CLI helper functions (`_is_optional_type`, `_unwrap_optional`, `_coerce_value`, `_set_typed_attr`)
+- Shared `parse_srt_timestamp()` utility in `nemoscribe.srt` module
+- Analysis scripts for SRT quality (`analyze_srt_stats.py`, `find_longest_segment.py`)
+
+### Changed
+
+- ITNNormalizer type now imports actual type when `nemo_text_processing` is available, falls back to `Any` otherwise
+- Improved type checking with conditional imports for optional dependencies
+
+### Security
+
+- Path validation for all ffmpeg/ffprobe subprocess calls prevents injection attacks
+- Path normalization and validation to prevent path traversal attacks
+
+### Fixed
+
+- Chunk extraction errors now raise exceptions instead of silently failing
+- Duration detection failures provide clear error messages
+- CLI parser handles invalid nested config keys properly
+- TemporaryDirectory context manager ensures cleanup even on exceptions
+
+### Documentation
+
+- Updated CLAUDE.md with CLI parser features, security improvements, and analysis scripts
+- Expanded test coverage documentation (srt_edge_cases, path_validation, cli_config_override)
+
 ## [0.2.1] - 2025-12-22
 
 ### Added
