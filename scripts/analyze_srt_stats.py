@@ -5,13 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
-
-def parse_srt_timestamp(timestamp: str) -> float:
-    """Convert SRT timestamp to seconds."""
-    # Format: 00:00:00,000
-    h, m, s = timestamp.split(":")
-    s, ms = s.split(",")
-    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+from nemoscribe.srt import parse_srt_timestamp
 
 
 def analyze_srt(srt_path: str) -> dict:

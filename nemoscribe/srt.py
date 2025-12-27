@@ -32,6 +32,25 @@ from typing import List, Optional, Tuple
 from nemo.collections.asr.parts.utils.rnnt_utils import Hypothesis
 
 
+def parse_srt_timestamp(timestamp: str) -> float:
+    """
+    Convert SRT timestamp format (HH:MM:SS,mmm) to seconds.
+
+    Args:
+        timestamp: SRT timestamp string (e.g., "00:01:23,456")
+
+    Returns:
+        Time in seconds (float)
+
+    Example:
+        >>> parse_srt_timestamp("00:01:23,456")
+        83.456
+    """
+    h, m, s = timestamp.split(":")
+    s, ms = s.split(",")
+    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+
+
 def format_srt_timestamp(seconds: float) -> str:
     """
     Convert seconds to SRT timestamp format (HH:MM:SS,mmm).
