@@ -30,6 +30,7 @@ This module handles:
 """
 
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Any, List, Union, get_args, get_origin, get_type_hints
 
@@ -245,6 +246,23 @@ def _coerce_value(value: str, target_type: Any) -> Any:
         if value == "":
             return []
         return [_coerce_value(part, item_type) for part in value.split(",")]
+
+    # Handle Enum types
+    if isinstance(target_type, type) and issubclass(target_type, Enum):
+        # Try by name first (case-insensitive)
+        for enum_member in target_type:
+            if enum_member.name.lower() == value_lower:
+                return enum_member
+        # Try by value
+        try:
+            return target_type(value)
+        except ValueError:
+            # List available options in error message
+            valid_options = ", ".join([e.name for e in target_type])
+            raise ValueError(
+                f"Invalid value '{value}' for {target_type.__name__}. "
+                f"Valid options: {valid_options}"
+            )
 
     if target_type is bool:
         return value_lower in ("true", "1", "yes", "y", "on")
