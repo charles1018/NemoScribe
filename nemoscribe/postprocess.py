@@ -32,9 +32,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from nemo.utils import logging
 
-
-# Type alias for ITN normalizer (InverseNormalizer from nemo_text_processing)
-ITNNormalizer = Any
+# Try to import actual ITN type if available, otherwise use Any
+try:
+    from nemo_text_processing.inverse_text_normalization.inverse_normalize import (
+        InverseNormalizer as ITNNormalizer,
+    )
+except ImportError:
+    # Type alias for ITN normalizer (InverseNormalizer from nemo_text_processing)
+    # Falls back to Any when nemo_text_processing is not installed
+    ITNNormalizer = Any  # type: ignore
 
 # =============================================================================
 # ITN (Inverse Text Normalization) Utilities
