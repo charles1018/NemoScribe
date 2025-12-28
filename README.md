@@ -272,6 +272,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `rnnt_fused_batch_size` | -1 | CUDA graphs: -1=enabled, 0=disabled |
 | `rnnt_timestamp_type` | "all" | Timestamp type: "char", "word", "segment", "all" |
 | `ctc_timestamp_type` | "all" | CTC timestamp type |
+| `segment_separators` | `[".", "?", "!"]` | Split segments at punctuation marks |
 
 ### Post-processing (`postprocessing.*`)
 

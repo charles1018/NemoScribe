@@ -272,6 +272,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `rnnt_fused_batch_size` | -1 | CUDA graphs：-1=啟用，0=停用 |
 | `rnnt_timestamp_type` | "all" | 時間戳記類型："char"、"word"、"segment"、"all" |
 | `ctc_timestamp_type` | "all" | CTC 時間戳記類型 |
+| `segment_separators` | `[".", "?", "!"]` | 在標點符號處分割片段 |
 
 ### 後處理 (`postprocessing.*`)
 
