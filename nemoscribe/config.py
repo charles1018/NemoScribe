@@ -166,6 +166,7 @@ class DecodingConfig:
     Key optimizations:
     - CUDA graphs (fused_batch_size=-1) for faster inference on GPU
     - Timestamp type selection for word/segment level output
+    - Segment separators for punctuation-based splitting
     """
 
     # Enable CUDA graphs for RNNT/TDT models
@@ -184,6 +185,12 @@ class DecodingConfig:
     # Compute timestamps (required for SRT generation)
     # Setting to None lets the model decide based on default
     compute_timestamps: Optional[bool] = None
+
+    # Segment separators for punctuation-based splitting
+    # When set, segments will be split at these punctuation marks
+    # This helps reduce long segments in drama/movie content
+    # Set to empty list to disable punctuation-based splitting
+    segment_separators: List[str] = field(default_factory=lambda: [".", "?", "!"])
 
 
 @dataclass

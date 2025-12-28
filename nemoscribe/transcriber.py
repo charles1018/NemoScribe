@@ -77,6 +77,7 @@ def setup_decoding_strategy(
     if hasattr(asr_model, 'joint'):
         # RNNT/TDT model
         try:
+            from omegaconf import open_dict
             from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
 
             # Build decoding config following transcribe_speech.py pattern
@@ -89,13 +90,20 @@ def setup_decoding_strategy(
             if cfg.compute_timestamps is not None:
                 decoding_cfg.compute_timestamps = cfg.compute_timestamps
 
+            # Set segment separators for punctuation-based splitting
+            # Note: NeMo uses "seperators" (typo) not "separators"
+            if cfg.segment_separators:
+                with open_dict(decoding_cfg):
+                    decoding_cfg.segment_seperators = cfg.segment_separators
+
             asr_model.change_decoding_strategy(decoding_cfg)
 
             cuda_graphs_status = "enabled" if cfg.rnnt_fused_batch_size == -1 else "disabled"
+            sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
             logging.info(
                 f"Applied RNNT decoding config: "
                 f"fused_batch_size={cfg.rnnt_fused_batch_size} (CUDA graphs {cuda_graphs_status}), "
-                f"timestamp_type={cfg.rnnt_timestamp_type}"
+                f"timestamp_type={cfg.rnnt_timestamp_type}{sep_info}"
             )
 
         except Exception as e:
@@ -104,6 +112,7 @@ def setup_decoding_strategy(
     else:
         # CTC model
         try:
+            from omegaconf import open_dict
             from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
 
             decoding_cfg = CTCDecodingConfig(
@@ -113,10 +122,16 @@ def setup_decoding_strategy(
             if cfg.compute_timestamps is not None:
                 decoding_cfg.compute_timestamps = cfg.compute_timestamps
 
+            # Set segment separators for punctuation-based splitting
+            if cfg.segment_separators:
+                with open_dict(decoding_cfg):
+                    decoding_cfg.segment_seperators = cfg.segment_separators
+
             asr_model.change_decoding_strategy(decoding_cfg)
 
+            sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
             logging.info(
-                f"Applied CTC decoding config: timestamp_type={cfg.ctc_timestamp_type}"
+                f"Applied CTC decoding config: timestamp_type={cfg.ctc_timestamp_type}{sep_info}"
             )
 
         except Exception as e:
