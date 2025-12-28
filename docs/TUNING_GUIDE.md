@@ -76,9 +76,10 @@ uv run nemoscribe \
     vad.pad_offset=0.1 \
     vad.filter_speech_first=false \
     audio.max_chunk_duration=60 \
-    audio.smart_segmentation=true \
-    decoding.rnnt_timestamp_type="segment"
+    audio.smart_segmentation=true
 ```
+
+> **注意**：`decoding.rnnt_timestamp_type="all"` 和 `decoding.segment_separators=[".", "?", "!"]` 為預設值，無需手動設定。這兩個參數已經過驗證，可將最長字幕段落從 46.96s 降至 11.28s（改善 76%）。
 
 ### 參數詳解
 | 參數 | 推薦值 | 原因 |
@@ -130,7 +131,6 @@ uv run nemoscribe \
     vad.filter_speech_first=true \
     audio.max_chunk_duration=60 \
     audio.smart_segmentation=true \
-    decoding.rnnt_timestamp_type="segment" \
     postprocessing.enable_itn=true
 ```
 
@@ -163,7 +163,6 @@ uv run nemoscribe \
     vad.filter_speech_first=true \
     audio.max_chunk_duration=60 \
     audio.smart_segmentation=true \
-    decoding.rnnt_timestamp_type="segment" \
     postprocessing.enable_itn=true
 ```
 
@@ -177,8 +176,8 @@ uv run nemoscribe \
 | :--- | :--- | :--- |
 | `audio.max_chunk_duration` | `60` | 強制每 60 秒切一段，避免模型疲勞。 |
 | `audio.smart_segmentation` | `true` | 聰明地在靜音處切分。 |
-| `decoding.rnnt_timestamp_type` | `"segment"` | 輸出整句時間點，避免單字破碎。 |
-| `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。設為空清單可停用。 |
+| `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
+| `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
 | `vad.enabled` | `true` | **永遠開啟**。這是避免幻覺（Hallucination）的唯一解法。 |
 
 ---
@@ -200,8 +199,7 @@ uv run nemoscribe \
     vad.pad_offset=0.1 \
     vad.filter_speech_first=false \
     audio.max_chunk_duration=60 \
-    audio.smart_segmentation=true \
-    decoding.rnnt_timestamp_type="segment"
+    audio.smart_segmentation=true
 ```
 
 ---

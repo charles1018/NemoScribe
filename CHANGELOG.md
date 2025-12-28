@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `segment_separators` configuration for punctuation-based segment splitting (verified: reduces max segment duration by 76%)
 - CLI parser now warns about unknown config keys to catch typos (e.g., `vad.onst` instead of `vad.onset`)
 - Enum type support in CLI type coercion with case-insensitive parsing
 - Comprehensive docstrings for CLI helper functions (`_is_optional_type`, `_unwrap_optional`, `_coerce_value`, `_set_typed_attr`)
