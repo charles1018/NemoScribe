@@ -90,6 +90,7 @@ uv run nemoscribe \
 | `vad.pad_onset` | `0.1` | 從預設 0.2 降低，減少段落前的 padding，避免重疊。 |
 | `vad.pad_offset` | `0.1` | 從預設 0.2 降低，減少段落後的 padding，避免重疊。 |
 | `vad.filter_speech_first` | `false` | **不強行過濾**。避免誤刪背景吵雜的對話。 |
+| `decoding.segment_separators` | `[".", "?", "!"]` | **標點分割**。在句子結尾處分割段落，避免超長字幕。 |
 | `postprocessing.enable_itn` | `false` | 戲劇對白通常不需要將數字轉為阿拉伯數字。 |
 
 ### 效果展示
@@ -177,6 +178,7 @@ uv run nemoscribe \
 | `audio.max_chunk_duration` | `60` | 強制每 60 秒切一段，避免模型疲勞。 |
 | `audio.smart_segmentation` | `true` | 聰明地在靜音處切分。 |
 | `decoding.rnnt_timestamp_type` | `"segment"` | 輸出整句時間點，避免單字破碎。 |
+| `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。設為空清單可停用。 |
 | `vad.enabled` | `true` | **永遠開啟**。這是避免幻覺（Hallucination）的唯一解法。 |
 
 ---
@@ -234,6 +236,21 @@ vad.onset=0.15  # 從 0.2 調到 0.15，更加敏感
 ```bash
 uv run nemoscribe video_path="影片.mp4" pretrained_name="nvidia/parakeet-tdt-0.6b-v3"
 ```
+
+### Q: 字幕段落太長（超過 30 秒）怎麼辦？
+**A:** 這通常發生在快速對話場景，嘗試以下方法：
+
+1. **確認標點分割已啟用**（預設開啟）：
+   ```bash
+   decoding.segment_separators=".,?,!"
+   ```
+
+2. **降低 VAD 的 min_duration_off** 來保留更多對話間隙：
+   ```bash
+   vad.min_duration_off=0.05  # 預設 0.2
+   ```
+
+3. 如果仍有超長段落，這可能是連續快速對話沒有靜音間隙的正常現象。
 
 ### Q: 如何確認 CUDA/GPU 是否正常運作？
 **A:** 執行以下指令檢查：
