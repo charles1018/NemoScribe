@@ -262,10 +262,23 @@ def test_decoding_config() -> TestResult:
         assert cfg.rnnt_timestamp_type == "all"
         assert cfg.ctc_timestamp_type == "all"
 
+        # segment_separators should default to punctuation marks
+        assert cfg.segment_separators == [".", "?", "!"], (
+            f"Default segment_separators should be ['.', '?', '!'], got {cfg.segment_separators}"
+        )
+
+        # Test custom segment_separators
+        custom_cfg = DecodingConfig(segment_separators=[".", "?", "!", ";"])
+        assert custom_cfg.segment_separators == [".", "?", "!", ";"]
+
+        # Test empty segment_separators (disabled)
+        disabled_cfg = DecodingConfig(segment_separators=[])
+        assert disabled_cfg.segment_separators == []
+
         return TestResult(
             name="decoding_config",
             passed=True,
-            message="DecodingConfig works correctly with CUDA graphs enabled",
+            message="DecodingConfig works correctly with CUDA graphs and segment_separators",
         )
 
     except AssertionError as e:
@@ -689,6 +702,60 @@ def test_cli_config_override() -> TestResult:
         )
 
 
+def test_cli_list_parsing() -> TestResult:
+    """Test CLI list value parsing for segment_separators."""
+    from nemoscribe import VideoToSRTConfig
+    from nemoscribe.cli import parse_args
+
+    try:
+        # Test comma-separated list
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["decoding.segment_separators=.,?,!,;"], cfg)
+        assert cfg.decoding.segment_separators == [".", "?", "!", ";"], (
+            f"Expected ['.', '?', '!', ';'], got {cfg.decoding.segment_separators}"
+        )
+
+        # Test empty list (disables feature)
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["decoding.segment_separators="], cfg)
+        assert cfg.decoding.segment_separators == [], (
+            f"Empty string should produce empty list, got {cfg.decoding.segment_separators}"
+        )
+
+        # Test single separator
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["decoding.segment_separators=."], cfg)
+        assert cfg.decoding.segment_separators == ["."], (
+            f"Expected ['.'], got {cfg.decoding.segment_separators}"
+        )
+
+        # Test default value preserved when not overridden
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["video_path=test.mp4"], cfg)
+        assert cfg.decoding.segment_separators == [".", "?", "!"], (
+            f"Default should be preserved, got {cfg.decoding.segment_separators}"
+        )
+
+        return TestResult(
+            name="cli_list_parsing",
+            passed=True,
+            message="CLI list parsing works correctly for segment_separators",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="cli_list_parsing",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="cli_list_parsing",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
 def test_full_config() -> TestResult:
     """Test full VideoToSRTConfig with all sub-configs."""
     from nemoscribe import VideoToSRTConfig
@@ -750,6 +817,7 @@ def run_all_tests() -> List[TestResult]:
         ("srt_edge_cases", test_srt_edge_cases),
         ("path_validation", test_path_validation),
         ("cli_config_override", test_cli_config_override),
+        ("cli_list_parsing", test_cli_list_parsing),
         ("full_config", test_full_config),
     ]
 
@@ -814,6 +882,7 @@ def main():
             "srt_edge": test_srt_edge_cases,
             "path": test_path_validation,
             "cli": test_cli_config_override,
+            "cli_list": test_cli_list_parsing,
             "full": test_full_config,
         }
 
