@@ -35,20 +35,18 @@ from pathlib import Path
 from typing import Any, List, Union, get_args, get_origin, get_type_hints
 
 import torch
-from omegaconf import OmegaConf
-
 from nemo.collections.asr.parts.utils.transcribe_utils import (
     get_inference_device,
     get_inference_dtype,
 )
 from nemo.utils import logging
+from omegaconf import OmegaConf
 
 from nemoscribe.audio import check_ffmpeg
 from nemoscribe.config import VideoToSRTConfig
 from nemoscribe.postprocess import get_itn_normalizer
 from nemoscribe.transcriber import load_asr_model, setup_decoding_strategy, transcribe_video
 from nemoscribe.vad import load_vad_model
-
 
 # Module docstring for help output
 _HELP_TEXT = """

@@ -3,7 +3,6 @@
 
 import re
 from pathlib import Path
-from typing import List, Tuple
 
 from nemoscribe.srt import parse_srt_timestamp
 
@@ -39,8 +38,8 @@ def analyze_srt(srt_path: str) -> dict:
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     if len(sys.argv) < 2:
         print("Usage: python analyze_srt_stats.py <srt_file>")

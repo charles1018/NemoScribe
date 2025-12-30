@@ -22,15 +22,6 @@ from nemoscribe.config import (
     VideoToSRTConfig,
 )
 
-# SRT formatting functions
-from nemoscribe.srt import (
-    clip_segments_to_window,
-    format_srt_timestamp,
-    hypothesis_to_srt_segments,
-    parse_srt_timestamp,
-    write_srt_file,
-)
-
 # Post-processing functions
 from nemoscribe.postprocess import (
     apply_itn,
@@ -38,6 +29,15 @@ from nemoscribe.postprocess import (
     deduplicate_segments,
     get_itn_normalizer,
     merge_overlapping_segments,
+)
+
+# SRT formatting functions
+from nemoscribe.srt import (
+    clip_segments_to_window,
+    format_srt_timestamp,
+    hypothesis_to_srt_segments,
+    parse_srt_timestamp,
+    write_srt_file,
 )
 
 # VAD functions

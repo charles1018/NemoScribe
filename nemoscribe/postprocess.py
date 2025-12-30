@@ -75,7 +75,9 @@ def get_itn_normalizer(
         return _ITN_NORMALIZER_CACHE[cache_key]
 
     try:
-        from nemo_text_processing.inverse_text_normalization.inverse_normalize import InverseNormalizer
+        from nemo_text_processing.inverse_text_normalization.inverse_normalize import (
+            InverseNormalizer,
+        )
 
         logging.info(f"Initializing ITN normalizer (lang={lang}, input_case={input_case})...")
         normalizer = InverseNormalizer(lang=lang, input_case=input_case)

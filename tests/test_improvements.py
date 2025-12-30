@@ -93,7 +93,7 @@ def calculate_transcription_quality(
     Returns:
         dict with WER, CER, and other metrics
     """
-    from nemo.collections.asr.metrics.wer import word_error_rate, word_error_rate_detail
+    from nemo.collections.asr.metrics.wer import word_error_rate_detail
 
     # Calculate WER with detail
     wer, tokens, ins_rate, del_rate, sub_rate = word_error_rate_detail(

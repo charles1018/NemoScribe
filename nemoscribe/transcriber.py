@@ -38,17 +38,20 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import torch
-
 from nemo.collections.asr.models import ASRModel, EncDecClassificationModel
 from nemo.utils import logging
 
 from nemoscribe.audio import create_audio_chunks, extract_audio, get_media_duration
 from nemoscribe.config import DecodingConfig, VideoToSRTConfig
 from nemoscribe.log_utils import suppress_repetitive_nemo_logs
-from nemoscribe.postprocess import ITNNormalizer, apply_itn_to_segments, deduplicate_segments, merge_overlapping_segments
+from nemoscribe.postprocess import (
+    ITNNormalizer,
+    apply_itn_to_segments,
+    deduplicate_segments,
+    merge_overlapping_segments,
+)
 from nemoscribe.srt import clip_segments_to_window, hypothesis_to_srt_segments, write_srt_file
 from nemoscribe.vad import create_audio_chunks_with_vad, run_vad_on_audio
-
 
 # =============================================================================
 # Decoding Strategy Configuration
@@ -77,8 +80,8 @@ def setup_decoding_strategy(
     if hasattr(asr_model, 'joint'):
         # RNNT/TDT model
         try:
-            from omegaconf import open_dict
             from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
+            from omegaconf import open_dict
 
             # Build decoding config following transcribe_speech.py pattern
             decoding_cfg = RNNTDecodingConfig(
@@ -112,8 +115,8 @@ def setup_decoding_strategy(
     else:
         # CTC model
         try:
-            from omegaconf import open_dict
             from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
+            from omegaconf import open_dict
 
             decoding_cfg = CTCDecodingConfig(
                 ctc_timestamp_type=cfg.ctc_timestamp_type,
@@ -365,7 +368,9 @@ def transcribe_video(
                 # Use VAD-aware chunking if speech segments are available
                 if speech_segments is not None:
                     smart_mode = "smart" if cfg.audio.smart_segmentation else "basic"
-                    logging.info(f"Using VAD-aware chunking ({smart_mode} segmentation, splitting at silence boundaries)")
+                    logging.info(
+                        f"Using VAD-aware chunking ({smart_mode} segmentation, splitting at silence)"
+                    )
                     chunks = create_audio_chunks_with_vad(
                         video_path,
                         tmp_dir,
@@ -390,14 +395,15 @@ def transcribe_video(
                 # Apply long audio optimizations for each chunk if needed
                 chunk_duration = max_chunk
                 if chunk_duration > cfg.audio.long_audio_threshold:
-                    logging.info(f"Chunk duration > {cfg.audio.long_audio_threshold}s, applying long audio optimizations...")
+                    logging.info(
+                        f"Chunk duration > {cfg.audio.long_audio_threshold}s, applying long audio optimizations..."
+                    )
                     long_audio_applied = apply_long_audio_settings(asr_model)
 
                 # Transcribe each chunk
                 all_segments = []
 
                 # Warmup for RTFx measurement (run first chunk without timing if requested)
-                warmup_done = False
                 if cfg.performance.calculate_rtfx and cfg.performance.warmup_steps > 0 and len(chunks) > 0:
                     logging.info("Running warmup step for RTFx measurement...")
                     warmup_audio, warmup_start, warmup_end, warmup_extract = chunks[0]
@@ -405,7 +411,6 @@ def transcribe_video(
                         warmup_audio, asr_model, cfg, time_offset=warmup_extract,
                         suppress_logs=cfg.logging.suppress_repetitive_logs
                     )
-                    warmup_done = True
                     # Clear GPU caches after warmup
                     if device.type == "cuda":
                         torch.cuda.synchronize()
@@ -487,7 +492,9 @@ def transcribe_video(
 
                 # Apply long audio optimizations if needed
                 if video_duration > cfg.audio.long_audio_threshold:
-                    logging.info(f"Audio longer than {cfg.audio.long_audio_threshold}s, applying long audio optimizations...")
+                    logging.info(
+                        f"Audio > {cfg.audio.long_audio_threshold}s, applying long audio optimizations..."
+                    )
                     long_audio_applied = apply_long_audio_settings(asr_model)
 
                 # Warmup for RTFx measurement

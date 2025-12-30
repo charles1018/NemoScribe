@@ -33,7 +33,6 @@ import os
 from typing import TYPE_CHECKING, List, Tuple
 
 import torch
-
 from nemo.collections.asr.models import EncDecClassificationModel
 from nemo.collections.asr.parts.utils.vad_utils import (
     generate_vad_segment_table_per_tensor,

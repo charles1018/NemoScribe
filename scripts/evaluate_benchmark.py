@@ -14,8 +14,8 @@ Requirements:
     uv sync --extra benchmark  (installs jiwer)
 """
 
-import re
 import argparse
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from jiwer import wer, cer
+    from jiwer import cer, wer
 except ImportError:
     print("ERROR: jiwer not installed. Run: uv sync --extra benchmark")
     exit(1)
@@ -286,7 +286,9 @@ def generate_report(results: list[EvaluationResult],
         lines.append(f"    WER: {r.wer_score*100:.2f}%, CER: {r.cer_score*100:.2f}%")
         lines.append(f"    Timing - Start: avg={r.avg_start_offset:.3f}s max={r.max_start_offset:.3f}s")
         lines.append(f"    Timing - End: avg={r.avg_end_offset:.3f}s max={r.max_end_offset:.3f}s")
-        lines.append(f"    Segments: {r.matched_segments} matched / {r.total_ref_segments} ref / {r.total_hyp_segments} hyp")
+        lines.append(
+            f"    Segments: {r.matched_segments} matched / {r.total_ref_segments} ref / {r.total_hyp_segments} hyp"
+        )
         lines.append(f"    Combined Score: {r.combined_score:.3f}")
 
     lines.append("")

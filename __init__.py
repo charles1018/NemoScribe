@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .nemoscribe import main, process_videos, transcribe_video, extract_audio
+from .nemoscribe import extract_audio, main, process_videos, transcribe_video
 
 __all__ = ['main', 'process_videos', 'transcribe_video', 'extract_audio']
