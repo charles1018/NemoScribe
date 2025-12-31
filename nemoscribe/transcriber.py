@@ -81,24 +81,23 @@ def setup_decoding_strategy(
         # RNNT/TDT model
         try:
             from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
-            from omegaconf import open_dict
 
-            # Build decoding config following transcribe_speech.py pattern
-            decoding_cfg = RNNTDecodingConfig(
-                fused_batch_size=cfg.rnnt_fused_batch_size,
-                rnnt_timestamp_type=cfg.rnnt_timestamp_type,
-            )
+            # Build decoding config with all parameters
+            # Note: NeMo uses "segment_seperators" (typo) not "segment_separators"
+            decoding_kwargs = {
+                "fused_batch_size": cfg.rnnt_fused_batch_size,
+                "rnnt_timestamp_type": cfg.rnnt_timestamp_type,
+            }
 
             # Set compute_timestamps if specified
             if cfg.compute_timestamps is not None:
-                decoding_cfg.compute_timestamps = cfg.compute_timestamps
+                decoding_kwargs["compute_timestamps"] = cfg.compute_timestamps
 
             # Set segment separators for punctuation-based splitting
-            # Note: NeMo uses "seperators" (typo) not "separators"
             if cfg.segment_separators:
-                with open_dict(decoding_cfg):
-                    decoding_cfg.segment_seperators = cfg.segment_separators
+                decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
+            decoding_cfg = RNNTDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
 
             cuda_graphs_status = "enabled" if cfg.rnnt_fused_batch_size == -1 else "disabled"
@@ -116,20 +115,20 @@ def setup_decoding_strategy(
         # CTC model
         try:
             from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
-            from omegaconf import open_dict
 
-            decoding_cfg = CTCDecodingConfig(
-                ctc_timestamp_type=cfg.ctc_timestamp_type,
-            )
+            # Build decoding config with all parameters
+            decoding_kwargs = {
+                "ctc_timestamp_type": cfg.ctc_timestamp_type,
+            }
 
             if cfg.compute_timestamps is not None:
-                decoding_cfg.compute_timestamps = cfg.compute_timestamps
+                decoding_kwargs["compute_timestamps"] = cfg.compute_timestamps
 
             # Set segment separators for punctuation-based splitting
             if cfg.segment_separators:
-                with open_dict(decoding_cfg):
-                    decoding_cfg.segment_seperators = cfg.segment_separators
+                decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
+            decoding_cfg = CTCDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
 
             sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
