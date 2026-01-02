@@ -30,6 +30,9 @@ for Hydra-style structured configuration.
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+# Import LLMPostProcessConfig from llm_postprocess module
+from nemoscribe.llm_postprocess import LLMPostProcessConfig
+
 
 @dataclass
 class SubtitleConfig:
@@ -283,6 +286,9 @@ class VideoToSRTConfig:
 
     # Logging configuration
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+
+    # LLM-based post-processing (disabled by default, requires anthropic SDK)
+    llm_postprocess: LLMPostProcessConfig = field(default_factory=LLMPostProcessConfig)
 
     # Overwrite existing SRT files
     overwrite: bool = True

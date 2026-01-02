@@ -43,6 +43,7 @@ from nemo.utils import logging
 
 from nemoscribe.audio import create_audio_chunks, extract_audio, get_media_duration
 from nemoscribe.config import DecodingConfig, VideoToSRTConfig
+from nemoscribe.llm_postprocess import postprocess_subtitles
 from nemoscribe.log_utils import suppress_repetitive_nemo_logs
 from nemoscribe.postprocess import (
     ITNNormalizer,
@@ -532,6 +533,10 @@ def transcribe_video(
             if itn_normalizer is not None:
                 logging.info("Applying Inverse Text Normalization (ITN)...")
                 segments = apply_itn_to_segments(segments, itn_normalizer)
+
+            # Apply LLM post-processing if enabled
+            if cfg.llm_postprocess.enabled:
+                segments = postprocess_subtitles(segments, cfg.llm_postprocess)
 
             # Write SRT file
             write_srt_file(segments, output_path)
