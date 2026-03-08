@@ -37,6 +37,13 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = []
 
+# Pin transitive dependencies for NeMo compatibility (see CLAUDE.md)
+[tool.uv]
+constraint-dependencies = [
+    "transformers>=4.57,<4.58",
+    "numpy<2",
+]
+
 [[tool.uv.index]]
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cu130"
