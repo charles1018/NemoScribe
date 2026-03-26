@@ -83,8 +83,6 @@ try:
 except ImportError:
     JSON_REPAIR_AVAILABLE = False
 
-# Agent loop constants
-MAX_STEPS = 3  # Maximum validation/retry attempts
 
 
 @dataclass
@@ -111,10 +109,6 @@ class LLMPostProcessConfig:
     batch_size: int = 20  # Process segments in batches (V2: increased from 10 for better context)
     max_retries: int = 3  # Retry on API errors
     timeout: int = 30  # API request timeout (seconds)
-
-    # Quality settings
-    include_context: bool = True  # Include prev/next segments for better context
-    preserve_timestamps: bool = True  # Always preserve original timestamps
 
 
 def get_api_key(config: LLMPostProcessConfig) -> Optional[str]:
@@ -308,7 +302,7 @@ def process_batch_with_agent_loop(
     1. Generate correction with LLM
     2. Parse JSON response (with json-repair if available)
     3. Validate result (count + similarity check)
-    4. If invalid, provide feedback and retry (max MAX_STEPS times)
+    4. If invalid, provide feedback and retry (max config.max_retries times)
     5. If all retries fail, fallback to original
 
     Args:
@@ -339,7 +333,7 @@ def process_batch_with_agent_loop(
 
     last_result = None
 
-    for step in range(MAX_STEPS):
+    for step in range(config.max_retries):
         try:
             # Call LLM API
             if provider == "anthropic":
@@ -378,7 +372,7 @@ def process_batch_with_agent_loop(
                     parsed_json = json.loads(cleaned_text)
 
             except Exception as e:
-                if step < MAX_STEPS - 1:
+                if step < config.max_retries - 1:
                     # Add error feedback and retry
                     error_msg = f"JSON parsing failed: {e}. Return valid JSON only, no markdown blocks."
                     if provider == "anthropic":
@@ -387,11 +381,11 @@ def process_batch_with_agent_loop(
                     else:
                         messages.append({"role": "assistant", "content": response_text})
                         messages.append({"role": "user", "content": error_msg})
-                    logging.warning(f"JSON parsing failed (attempt {step+1}/{MAX_STEPS}): {e}")
+                    logging.warning(f"JSON parsing failed (attempt {step+1}/{config.max_retries}): {e}")
                     continue
                 else:
                     # Final attempt failed, use original
-                    logging.error(f"All parsing attempts failed, using original text")
+                    logging.error("All parsing attempts failed, using original text")
                     return [(start, end, text) for _, start, end, text in indexed_batch]
 
             # Convert JSON to segments
@@ -410,8 +404,8 @@ def process_batch_with_agent_loop(
                 return result_segments
 
             # Validation failed, add feedback
-            if step < MAX_STEPS - 1:
-                logging.warning(f"Validation failed (attempt {step+1}/{MAX_STEPS}): {error_message[:100]}...")
+            if step < config.max_retries - 1:
+                logging.warning(f"Validation failed (attempt {step+1}/{config.max_retries}): {error_message[:100]}...")
                 if provider == "anthropic":
                     messages.append({"role": "assistant", "content": response_text})
                     messages.append({"role": "user", "content": f"Validation failed:\n{error_message}"})
@@ -420,12 +414,12 @@ def process_batch_with_agent_loop(
                     messages.append({"role": "user", "content": f"Validation failed:\n{error_message}"})
             else:
                 # Final attempt, use result even if not perfect
-                logging.warning(f"Max attempts reached, using last result despite validation issues")
+                logging.warning("Max attempts reached, using last result despite validation issues")
                 return last_result if last_result else [(s, e, t) for _, s, e, t in indexed_batch]
 
         except Exception as e:
-            logging.error(f"Agent loop iteration failed (attempt {step+1}/{MAX_STEPS}): {e}")
-            if step == MAX_STEPS - 1:
+            logging.error(f"Agent loop iteration failed (attempt {step+1}/{config.max_retries}): {e}")
+            if step == config.max_retries - 1:
                 # All attempts exhausted
                 return [(start, end, text) for _, start, end, text in indexed_batch]
 

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-26
+
+### Added
+
+- **LLM Post-processing**: Fix transcription errors (character names, proper nouns, homophones) using OpenAI or Anthropic LLMs
+  - Agent Loop pattern: LLM → Validate → Feedback → Retry for reliable parsing
+  - JSON structured output with `json-repair` for robust response parsing
+  - Similarity validation to prevent excessive changes (adaptive thresholds)
+  - Supports OpenAI (GPT-4o, GPT-4o-mini) and Anthropic (Claude 3.5 Sonnet, Claude 3 Opus)
+  - Automatic `.env` file loading for API keys via `python-dotenv`
+  - Graceful fallback to original text on any error
+- New optional dependency group: `uv sync --extra llm` (anthropic, openai, python-dotenv, json-repair)
+- LLM unit tests: config, CLI override, validation, JSON parsing, fallback (no API key required)
+
+### Changed
+
+- Version bump to 0.4.0
+
+### Known Limitations
+
+- LLM may over-correct ~10% of segments (mostly minor/cosmetic changes)
+- Cost per episode: ~$0.06 (GPT-4o-mini) to ~$0.24 (Claude 3.5 Sonnet)
+- Semantic errors (e.g., wrong word choice) remain challenging for LLM to fix
+
 ## [0.3.0] - 2025-12-28
 
 ### Added

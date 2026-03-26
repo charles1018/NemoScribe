@@ -4,7 +4,7 @@ NemoScribe - Video to SRT Subtitle Generator
 Convert video files to SRT subtitles using NVIDIA NeMo ASR models.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "charles1018"
 
 # CLI entry point
@@ -21,6 +21,9 @@ from nemoscribe.config import (
     VADConfig,
     VideoToSRTConfig,
 )
+
+# LLM post-processing
+from nemoscribe.llm_postprocess import LLMPostProcessConfig, postprocess_subtitles
 
 # Post-processing functions
 from nemoscribe.postprocess import (
@@ -60,6 +63,9 @@ __all__ = [
     "DecodingConfig",
     "PerformanceConfig",
     "LoggingConfig",
+    "LLMPostProcessConfig",
+    # LLM post-processing
+    "postprocess_subtitles",
     # SRT functions
     "format_srt_timestamp",
     "parse_srt_timestamp",

@@ -287,7 +287,7 @@ class VideoToSRTConfig:
     # Logging configuration
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
-    # LLM-based post-processing (disabled by default, requires anthropic SDK)
+    # LLM-based post-processing (disabled by default, requires anthropic or openai SDK)
     llm_postprocess: LLMPostProcessConfig = field(default_factory=LLMPostProcessConfig)
 
     # Overwrite existing SRT files

@@ -34,6 +34,7 @@ Built on [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) framework with [Parakeet-
 - **Voice Activity Detection (VAD)**: Filter non-speech content to reduce hallucinations
 - **Smart Segmentation**: Split audio at silence boundaries, not mid-speech
 - **Inverse Text Normalization (ITN)**: Convert spoken forms to written forms ("twenty five" → "25")
+- **LLM Post-processing**: Fix character names and transcription errors using AI (OpenAI/Anthropic)
 - **CUDA Optimized**: CUDA graphs enabled by default for faster inference
 - **Batch Processing**: Process entire directories of videos
 
@@ -120,6 +121,20 @@ explicit = true
 Then re-sync:
 ```bash
 uv sync
+```
+
+### Optional: LLM Post-processing
+
+To enable AI-powered subtitle correction (fixes character names, proper nouns):
+
+```bash
+uv sync --extra llm
+```
+
+Then create a `.env` file with your API key:
+```bash
+cp .env.example .env
+# Edit .env: OPENAI_API_KEY=sk-... or ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ### 5. Verify Setup
@@ -210,6 +225,36 @@ uv add nemo_text_processing
 - `"three point one four"` → `"3.14"`
 - `"the meeting is at ten thirty am"` → `"the meeting is at 10:30 a.m."`
 
+### LLM Post-processing
+
+Fix transcription errors (character names, proper nouns) using an LLM:
+
+```bash
+# Using OpenAI GPT-4o-mini (recommended: best cost/quality ratio, ~$0.06/episode)
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=openai \
+  llm_postprocess.model=gpt-4o-mini
+
+# Using Anthropic Claude 3.5 Sonnet (higher quality, ~$0.24/episode)
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=anthropic \
+  llm_postprocess.model=claude-3-5-sonnet-20241022
+```
+
+**What it fixes:**
+- Character names: `"Alias of us"` → `"Kylie Estevez"`, `"Herman"` → `"Herrmann"`
+- Proper nouns and technical terms
+- Homophones: `their/there`, `to/too`
+
+**Known limitations:**
+- May over-correct ~10% of segments (mostly minor changes)
+- Semantic errors remain challenging
+- Requires API key and internet connection
+
 ### Performance Measurement
 
 ```bash
@@ -281,6 +326,18 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `enable_itn` | false | Enable Inverse Text Normalization |
 | `itn_lang` | "en" | Language for ITN |
 | `itn_input_case` | "lower_cased" | Input case: "lower_cased" or "cased" |
+
+### LLM Post-processing (`llm_postprocess.*`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enabled` | false | Enable LLM-based subtitle correction |
+| `provider` | "anthropic" | LLM provider: "anthropic" or "openai" |
+| `model` | "claude-3-5-sonnet-20241022" | Model name (provider-specific) |
+| `api_key` | None | API key (None = read from environment) |
+| `batch_size` | 20 | Segments per LLM request |
+| `max_retries` | 3 | Max validation/retry attempts per batch |
+| `timeout` | 30 | API request timeout (seconds) |
 
 ### Performance (`performance.*`)
 
@@ -356,6 +413,7 @@ nemoscribe/
 ├── transcriber.py     # ASR model and transcription
 ├── srt.py             # SRT formatting and output
 ├── postprocess.py     # ITN, segment merging
+├── llm_postprocess.py # LLM-based subtitle correction
 └── log_utils.py       # Log filtering
 ```
 
@@ -391,7 +449,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# Available tests: baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge_cases, path_validation, cli_config_override, full
+# Available tests: baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, full
 ```
 
 ### Test Coverage
@@ -408,6 +466,11 @@ uv run python tests/test_improvements.py --test metrics
 - **srt_edge_cases**: SRT edge case handling (empty segments, special characters)
 - **path_validation**: Path validation and security checks
 - **cli_config_override**: CLI configuration override functionality
+- **llm_config**: LLM post-processing configuration defaults
+- **llm_cli_override**: LLM CLI parameter overrides
+- **llm_validation**: Batch result similarity validation
+- **llm_parsing**: JSON response parsing and prompt building
+- **llm_fallback**: Graceful fallback when disabled or no API key
 - **full_config**: Complete configuration combination
 
 ## Quality Metrics

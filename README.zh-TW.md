@@ -34,6 +34,7 @@
 - **語音活動偵測 (VAD)**：過濾非語音內容以減少幻覺
 - **智慧分段**：在靜音處分割音訊，而非語音中間
 - **逆文字正規化 (ITN)**：將口語形式轉換為書寫形式（「twenty five」→「25」）
+- **LLM 後處理**：使用 AI（OpenAI/Anthropic）修正人名與轉錄錯誤
 - **CUDA 最佳化**：預設啟用 CUDA graphs 以加速推論
 - **批次處理**：處理整個目錄的影片檔案
 
@@ -120,6 +121,20 @@ explicit = true
 然後重新同步：
 ```bash
 uv sync
+```
+
+### 選用：LLM 後處理
+
+啟用 AI 字幕修正功能（修正人名、專有名詞）：
+
+```bash
+uv sync --extra llm
+```
+
+然後建立 `.env` 檔案並設定 API 金鑰：
+```bash
+cp .env.example .env
+# 編輯 .env：OPENAI_API_KEY=sk-... 或 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ### 5. 驗證設定
@@ -210,6 +225,36 @@ uv add nemo_text_processing
 - `"three point one four"` → `"3.14"`
 - `"the meeting is at ten thirty am"` → `"the meeting is at 10:30 a.m."`
 
+### LLM 後處理
+
+使用 LLM 修正轉錄錯誤（人名、專有名詞）：
+
+```bash
+# 使用 OpenAI GPT-4o-mini（推薦：最佳性價比，約 $0.06/集）
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=openai \
+  llm_postprocess.model=gpt-4o-mini
+
+# 使用 Anthropic Claude 3.5 Sonnet（更高品質，約 $0.24/集）
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=anthropic \
+  llm_postprocess.model=claude-3-5-sonnet-20241022
+```
+
+**修正範例：**
+- 人名：`"Alias of us"` → `"Kylie Estevez"`、`"Herman"` → `"Herrmann"`
+- 專有名詞與技術用語
+- 同音異字：`their/there`、`to/too`
+
+**已知限制：**
+- 約 10% 的字幕段落可能被過度修正（多為輕微變動）
+- 語意錯誤仍具挑戰性
+- 需要 API 金鑰與網路連線
+
 ### 效能測量
 
 ```bash
@@ -281,6 +326,18 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `enable_itn` | false | 啟用逆文字正規化 |
 | `itn_lang` | "en" | ITN 語言 |
 | `itn_input_case` | "lower_cased" | 輸入大小寫："lower_cased" 或 "cased" |
+
+### LLM 後處理 (`llm_postprocess.*`)
+
+| 選項 | 預設值 | 說明 |
+|------|--------|------|
+| `enabled` | false | 啟用 LLM 字幕修正 |
+| `provider` | "anthropic" | LLM 提供商："anthropic" 或 "openai" |
+| `model` | "claude-3-5-sonnet-20241022" | 模型名稱（依提供商而異）|
+| `api_key` | None | API 金鑰（None = 從環境變數讀取）|
+| `batch_size` | 20 | 每次 LLM 請求的字幕段落數 |
+| `max_retries` | 3 | 每批次最大驗證/重試次數 |
+| `timeout` | 30 | API 請求逾時（秒）|
 
 ### 效能 (`performance.*`)
 
@@ -356,6 +413,7 @@ nemoscribe/
 ├── transcriber.py     # ASR 模型與轉錄
 ├── srt.py             # SRT 格式化與輸出
 ├── postprocess.py     # ITN、片段合併
+├── llm_postprocess.py # LLM 字幕修正
 └── log_utils.py       # 日誌過濾
 ```
 
@@ -391,7 +449,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# 可用測試：baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge_cases, path_validation, cli_config_override, full
+# 可用測試：baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, full
 ```
 
 ### 測試涵蓋範圍
@@ -408,6 +466,11 @@ uv run python tests/test_improvements.py --test metrics
 - **srt_edge_cases**：SRT 邊界情況處理（空片段、特殊字元）
 - **path_validation**：路徑驗證與安全檢查
 - **cli_config_override**：CLI 設定覆寫功能
+- **llm_config**：LLM 後處理設定預設值
+- **llm_cli_override**：LLM CLI 參數覆寫
+- **llm_validation**：批次結果相似度驗證
+- **llm_parsing**：JSON 回應解析與 prompt 建構
+- **llm_fallback**：停用或無 API 金鑰時的優雅降級
 - **full_config**：完整設定組合
 
 ## 品質指標

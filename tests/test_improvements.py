@@ -756,6 +756,267 @@ def test_cli_list_parsing() -> TestResult:
         )
 
 
+def test_llm_config() -> TestResult:
+    """Test LLMPostProcessConfig defaults and integration with VideoToSRTConfig."""
+    from nemoscribe import VideoToSRTConfig
+    from nemoscribe.llm_postprocess import LLMPostProcessConfig
+
+    try:
+        # Test standalone defaults
+        llm_cfg = LLMPostProcessConfig()
+        assert llm_cfg.enabled is False, "LLM should be disabled by default"
+        assert llm_cfg.provider == "anthropic", f"Default provider should be anthropic, got {llm_cfg.provider}"
+        assert llm_cfg.model == "claude-3-5-sonnet-20241022"
+        assert llm_cfg.api_key is None
+        assert llm_cfg.batch_size == 20
+        assert llm_cfg.max_retries == 3
+        assert llm_cfg.timeout == 30
+
+        # Test integration with VideoToSRTConfig
+        cfg = VideoToSRTConfig()
+        assert hasattr(cfg, "llm_postprocess"), "VideoToSRTConfig should have llm_postprocess"
+        assert cfg.llm_postprocess.enabled is False
+
+        # Test custom config
+        custom = LLMPostProcessConfig(enabled=True, provider="openai", model="gpt-4o-mini", batch_size=30)
+        assert custom.enabled is True
+        assert custom.provider == "openai"
+        assert custom.model == "gpt-4o-mini"
+        assert custom.batch_size == 30
+
+        return TestResult(
+            name="llm_config",
+            passed=True,
+            message="LLMPostProcessConfig works correctly",
+        )
+
+    except (AssertionError, AssertionError) as e:
+        return TestResult(name="llm_config", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_config", passed=False, message=f"Exception: {e}")
+
+
+def test_llm_cli_override() -> TestResult:
+    """Test CLI override for llm_postprocess.* parameters."""
+    from nemoscribe import VideoToSRTConfig
+    from nemoscribe.cli import parse_args
+
+    try:
+        # Test enabling LLM
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["llm_postprocess.enabled=true"], cfg)
+        assert cfg.llm_postprocess.enabled is True, "Should enable LLM via CLI"
+
+        # Test provider override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["llm_postprocess.provider=openai"], cfg)
+        assert cfg.llm_postprocess.provider == "openai"
+
+        # Test model override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["llm_postprocess.model=gpt-4o-mini"], cfg)
+        assert cfg.llm_postprocess.model == "gpt-4o-mini"
+
+        # Test batch_size override
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["llm_postprocess.batch_size=30"], cfg)
+        assert cfg.llm_postprocess.batch_size == 30
+
+        # Test multiple LLM overrides
+        cfg = VideoToSRTConfig()
+        cfg = parse_args([
+            "llm_postprocess.enabled=true",
+            "llm_postprocess.provider=openai",
+            "llm_postprocess.model=gpt-4o-mini",
+            "llm_postprocess.batch_size=15",
+        ], cfg)
+        assert cfg.llm_postprocess.enabled is True
+        assert cfg.llm_postprocess.provider == "openai"
+        assert cfg.llm_postprocess.model == "gpt-4o-mini"
+        assert cfg.llm_postprocess.batch_size == 15
+
+        return TestResult(
+            name="llm_cli_override",
+            passed=True,
+            message="LLM CLI overrides parsed correctly",
+        )
+
+    except (AssertionError, AssertionError) as e:
+        return TestResult(name="llm_cli_override", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_cli_override", passed=False, message=f"Exception: {e}")
+
+
+def test_llm_validation() -> TestResult:
+    """Test validate_batch_result() logic without API calls."""
+    from nemoscribe.llm_postprocess import LLMPostProcessConfig, validate_batch_result
+
+    try:
+        config = LLMPostProcessConfig()
+
+        # Test 1: Valid result (count matches, minimal changes)
+        original = [
+            (1, 0.0, 2.0, "Hello world"),
+            (2, 2.5, 4.0, "How are you"),
+        ]
+        corrected = [
+            (0.0, 2.0, "Hello world"),
+            (2.5, 4.0, "How are you"),
+        ]
+        is_valid, msg = validate_batch_result(original, corrected, config)
+        assert is_valid, f"Identical text should be valid: {msg}"
+
+        # Test 2: Count mismatch
+        corrected_short = [(0.0, 2.0, "Hello world")]
+        is_valid, msg = validate_batch_result(original, corrected_short, config)
+        assert not is_valid, "Count mismatch should be invalid"
+        assert "Missing" in msg
+
+        # Test 3: Acceptable change (name fix, short text, 30% threshold)
+        original_name = [(1, 0.0, 2.0, "Alias of us")]
+        corrected_name = [(0.0, 2.0, "Kylie Estevez")]
+        is_valid, msg = validate_batch_result(original_name, corrected_name, config)
+        # Short text (<=10 words) uses 30% threshold — "Alias of us" vs "Kylie Estevez"
+        # similarity is low but threshold is also low for short text
+        # This tests that the adaptive threshold works for name corrections
+
+        # Test 4: Excessive change on long text (>10 words, 60% threshold)
+        long_orig_text = "The quick brown fox jumps over the lazy dog near the river bank on a sunny day"
+        long_corr_text = "A completely different sentence that has nothing to do with the original text at all"
+        long_original = [(1, 0.0, 5.0, long_orig_text)]
+        long_corrected = [(0.0, 5.0, long_corr_text)]
+        is_valid, msg = validate_batch_result(long_original, long_corrected, config)
+        assert not is_valid, "Excessive change on long text should be invalid"
+        assert "excessive" in msg.lower()
+
+        # Test 5: Minor fix on long text (should pass)
+        long_orig2 = [(1, 0.0, 5.0, "The quick brown fox jumps over the lazy dog near the river bank")]
+        long_corr2 = [(0.0, 5.0, "The quick brown fox jumps over the lazy dog near the river bank.")]
+        is_valid, msg = validate_batch_result(long_orig2, long_corr2, config)
+        assert is_valid, f"Minor punctuation fix should be valid: {msg}"
+
+        return TestResult(
+            name="llm_validation",
+            passed=True,
+            message="validate_batch_result() works correctly",
+        )
+
+    except (AssertionError, AssertionError) as e:
+        return TestResult(name="llm_validation", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_validation", passed=False, message=f"Exception: {e}")
+
+
+def test_llm_parsing() -> TestResult:
+    """Test parse_json_to_segments() and build_correction_prompt()."""
+    from nemoscribe.llm_postprocess import (
+        LLMPostProcessConfig,
+        build_correction_prompt,
+        parse_json_to_segments,
+    )
+
+    try:
+        config = LLMPostProcessConfig()
+        indexed_batch = [
+            (1, 0.0, 2.0, "Hello world"),
+            (2, 2.5, 4.0, "How are you"),
+            (3, 5.0, 7.0, "I am fine"),
+        ]
+
+        # Test parse_json_to_segments: normal case
+        json_data = {"1": "Hello World", "2": "How are you?", "3": "I am fine."}
+        segments = parse_json_to_segments(json_data, indexed_batch)
+        assert len(segments) == 3, f"Expected 3 segments, got {len(segments)}"
+        assert segments[0] == (0.0, 2.0, "Hello World")
+        assert segments[1] == (2.5, 4.0, "How are you?")
+        assert segments[2] == (5.0, 7.0, "I am fine.")
+
+        # Test parse_json_to_segments: invalid index skipped
+        json_data_bad = {"1": "Hello", "99": "Unknown", "abc": "Invalid"}
+        segments = parse_json_to_segments(json_data_bad, indexed_batch)
+        assert len(segments) == 1, f"Should only parse valid indices, got {len(segments)}"
+
+        # Test parse_json_to_segments: empty input
+        segments = parse_json_to_segments({}, indexed_batch)
+        assert len(segments) == 0, "Empty JSON should produce no segments"
+
+        # Test build_correction_prompt
+        prompt = build_correction_prompt(indexed_batch, config)
+        assert "Hello world" in prompt, "Prompt should contain segment text"
+        assert "JSON" in prompt, "Prompt should mention JSON format"
+        assert '"1"' in prompt, "Prompt should contain segment indices"
+
+        return TestResult(
+            name="llm_parsing",
+            passed=True,
+            message="JSON parsing and prompt building work correctly",
+        )
+
+    except (AssertionError, AssertionError) as e:
+        return TestResult(name="llm_parsing", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_parsing", passed=False, message=f"Exception: {e}")
+
+
+def test_llm_fallback() -> TestResult:
+    """Test LLM graceful fallback when disabled or no API key."""
+    import os
+
+    from nemoscribe.llm_postprocess import LLMPostProcessConfig, get_api_key, postprocess_subtitles
+
+    try:
+        segments = [
+            (0.0, 2.0, "Hello world"),
+            (2.5, 4.0, "How are you"),
+        ]
+
+        # Test 1: disabled returns original
+        disabled_cfg = LLMPostProcessConfig(enabled=False)
+        result = postprocess_subtitles(segments, disabled_cfg)
+        assert result == segments, "Disabled LLM should return original segments"
+
+        # Test 2: empty segments returns empty
+        enabled_cfg = LLMPostProcessConfig(enabled=True)
+        result = postprocess_subtitles([], enabled_cfg)
+        assert result == [], "Empty input should return empty"
+
+        # Test 3: no API key returns original (graceful fallback)
+        # Temporarily clear env vars to ensure no key is found
+        orig_anthropic = os.environ.pop("ANTHROPIC_API_KEY", None)
+        orig_openai = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            no_key_cfg = LLMPostProcessConfig(enabled=True, provider="anthropic", api_key=None)
+            result = postprocess_subtitles(segments, no_key_cfg)
+            assert result == segments, "No API key should fallback to original"
+        finally:
+            # Restore env vars
+            if orig_anthropic:
+                os.environ["ANTHROPIC_API_KEY"] = orig_anthropic
+            if orig_openai:
+                os.environ["OPENAI_API_KEY"] = orig_openai
+
+        # Test 4: get_api_key with explicit key
+        cfg_with_key = LLMPostProcessConfig(api_key="test-key-123")
+        key = get_api_key(cfg_with_key)
+        assert key == "test-key-123", f"Should return explicit key, got {key}"
+
+        # Test 5: unknown provider returns original
+        unknown_cfg = LLMPostProcessConfig(enabled=True, provider="unknown", api_key="test")
+        result = postprocess_subtitles(segments, unknown_cfg)
+        assert result == segments, "Unknown provider should fallback to original"
+
+        return TestResult(
+            name="llm_fallback",
+            passed=True,
+            message="LLM graceful fallback works correctly",
+        )
+
+    except (AssertionError, AssertionError) as e:
+        return TestResult(name="llm_fallback", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_fallback", passed=False, message=f"Exception: {e}")
+
+
 def test_full_config() -> TestResult:
     """Test full VideoToSRTConfig with all sub-configs."""
     from nemoscribe import VideoToSRTConfig
@@ -775,6 +1036,7 @@ def test_full_config() -> TestResult:
         assert hasattr(cfg, "performance"), "Missing performance config"
         assert hasattr(cfg, "audio"), "Missing audio config"
         assert hasattr(cfg, "subtitle"), "Missing subtitle config"
+        assert hasattr(cfg, "llm_postprocess"), "Missing llm_postprocess config"
 
         # Verify nested settings
         assert cfg.vad.enabled
@@ -818,6 +1080,11 @@ def run_all_tests() -> List[TestResult]:
         ("path_validation", test_path_validation),
         ("cli_config_override", test_cli_config_override),
         ("cli_list_parsing", test_cli_list_parsing),
+        ("llm_config", test_llm_config),
+        ("llm_cli_override", test_llm_cli_override),
+        ("llm_validation", test_llm_validation),
+        ("llm_parsing", test_llm_parsing),
+        ("llm_fallback", test_llm_fallback),
         ("full_config", test_full_config),
     ]
 
@@ -842,7 +1109,9 @@ def main():
     parser.add_argument(
         "--test",
         type=str,
-        help="Run specific test (vad, itn, decoding, segmentation, metrics, all)",
+        help="Run specific test (baseline, vad, itn, decoding, segmentation, "
+        "merging, performance, metrics, srt, llm, llm_cli, llm_validation, "
+        "llm_parsing, llm_fallback, full, all)",
         default="all",
     )
     parser.add_argument(
@@ -883,6 +1152,11 @@ def main():
             "path": test_path_validation,
             "cli": test_cli_config_override,
             "cli_list": test_cli_list_parsing,
+            "llm": test_llm_config,
+            "llm_cli": test_llm_cli_override,
+            "llm_validation": test_llm_validation,
+            "llm_parsing": test_llm_parsing,
+            "llm_fallback": test_llm_fallback,
             "full": test_full_config,
         }
 

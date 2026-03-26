@@ -16,6 +16,7 @@
 - [📰 場景 B：新聞與訪談](#-場景-b新聞與訪談-newsinterview)
 - [💻 場景 C：技術教學與解說](#-場景-c技術教學與解說-techtutorial)
 - [🔧 通用基礎參數](#-通用基礎參數-base-config)
+- [🤖 LLM 後處理](#-llm-後處理-llm-post-processing)
 - [⚡ 批次處理指令](#-批次處理指令-batch-processing)
 - [❓ 常見問題 FAQ](#-常見問題-faq)
 
@@ -179,6 +180,75 @@ uv run nemoscribe \
 | `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
 | `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
 | `vad.enabled` | `true` | **永遠開啟**。這是避免幻覺（Hallucination）的唯一解法。 |
+
+---
+
+## 🤖 LLM 後處理 (LLM Post-processing)
+
+**適用情境：** 字幕中人名、專有名詞辨識有誤，或需要更高的一致性。
+
+ASR 模型在辨識人名和專有名詞時有先天限制（例如將 "Kylie Estevez" 聽成 "Alias of us"）。LLM 後處理透過大型語言模型修正這類錯誤。
+
+### 前置條件
+
+```bash
+# 安裝 LLM 相依套件
+uv sync --extra llm
+
+# 設定 API 金鑰
+cp .env.example .env
+# 編輯 .env，加入：OPENAI_API_KEY=sk-... 或 ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### 推薦設定
+
+| 提供商 | 模型 | 品質 | 成本/集 | 建議場景 |
+|--------|------|------|---------|----------|
+| OpenAI | `gpt-4o-mini` | 良好 | ~$0.06 | **首選**：性價比最高 |
+| OpenAI | `gpt-4o` | 優秀 | ~$0.30 | 需要更高品質時 |
+| Anthropic | `claude-3-5-sonnet-20241022` | 優秀 | ~$0.24 | 偏好 Anthropic 時 |
+
+### 使用範例
+
+```bash
+# 搭配 VAD + LLM（完整推薦流程）
+uv run nemoscribe \
+    video_path="您的影片.mkv" \
+    vad.enabled=true \
+    vad.onset=0.2 \
+    vad.offset=0.1 \
+    vad.min_duration_off=0.05 \
+    vad.pad_onset=0.1 \
+    vad.pad_offset=0.1 \
+    llm_postprocess.enabled=true \
+    llm_postprocess.provider=openai \
+    llm_postprocess.model=gpt-4o-mini
+```
+
+### 參數說明
+
+| 參數 | 推薦值 | 說明 |
+| :--- | :--- | :--- |
+| `llm_postprocess.enabled` | `true` | 啟用 LLM 修正 |
+| `llm_postprocess.provider` | `openai` | 提供商：`openai` 或 `anthropic` |
+| `llm_postprocess.model` | `gpt-4o-mini` | 模型名稱 |
+| `llm_postprocess.batch_size` | `20` | 每次送給 LLM 的字幕段落數。增大可提供更多上下文但較慢 |
+| `llm_postprocess.max_retries` | `3` | 驗證失敗時的最大重試次數 |
+
+### 已知限制
+
+- **過度修正**：約 10% 的字幕段落可能被不必要地修改（多為輕微變動）
+- **語意錯誤**：LLM 難以修正語意層面的錯誤（例如將 "breach" 誤改為 "bridge"）
+- **數字漂移**：偶爾會改變數字（例如 "thirty seconds" → "40 seconds"）
+- **成本**：需要付費 API，但成本很低（GPT-4o-mini 約每集 $0.06）
+
+### 運作原理
+
+1. 將字幕分批（每批 20 段）送給 LLM
+2. LLM 以 JSON 格式回傳修正結果
+3. 驗證修正幅度（相似度檢查，防止過度修改）
+4. 若驗證失敗，提供回饋並重試（最多 3 次）
+5. 任何環節失敗時，自動降級使用原始字幕
 
 ---
 
