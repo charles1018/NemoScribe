@@ -931,10 +931,22 @@ def test_llm_parsing() -> TestResult:
         assert segments[1] == (2.5, 4.0, "How are you?")
         assert segments[2] == (5.0, 7.0, "I am fine.")
 
+        # Test parse_json_to_segments: preserve original segment order even if JSON keys are shuffled
+        json_data_shuffled = {"3": "I am fine.", "1": "Hello World", "2": "How are you?"}
+        segments = parse_json_to_segments(json_data_shuffled, indexed_batch)
+        assert segments[0] == (0.0, 2.0, "Hello World")
+        assert segments[1] == (2.5, 4.0, "How are you?")
+        assert segments[2] == (5.0, 7.0, "I am fine.")
+
         # Test parse_json_to_segments: invalid index skipped
         json_data_bad = {"1": "Hello", "99": "Unknown", "abc": "Invalid"}
         segments = parse_json_to_segments(json_data_bad, indexed_batch)
         assert len(segments) == 1, f"Should only parse valid indices, got {len(segments)}"
+
+        # Test parse_json_to_segments: non-string values skipped
+        json_data_non_string = {"1": "Hello", "2": 42, "3": None}
+        segments = parse_json_to_segments(json_data_non_string, indexed_batch)
+        assert segments == [(0.0, 2.0, "Hello")]
 
         # Test parse_json_to_segments: empty input
         segments = parse_json_to_segments({}, indexed_batch)

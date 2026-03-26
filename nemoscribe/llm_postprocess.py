@@ -42,7 +42,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from nemo.utils import logging
 
@@ -212,7 +212,7 @@ def validate_batch_result(
 
 
 def parse_json_to_segments(
-    json_data: dict,
+    json_data: Any,
     indexed_batch: List[Tuple[int, float, float, str]],
 ) -> List[Tuple[float, float, str]]:
     """
@@ -225,19 +225,26 @@ def parse_json_to_segments(
     Returns:
         List of (start, end, corrected_text) tuples
     """
+    if not isinstance(json_data, dict):
+        raise TypeError("LLM response must be a JSON object mapping segment indices to text")
+
     # Create mapping from index to timestamps
     index_to_timestamps = {idx: (start, end) for idx, start, end, _ in indexed_batch}
+    corrected_text_by_index: Dict[int, str] = {}
 
-    corrected_segments = []
     for idx_str, corrected_text in json_data.items():
         try:
             idx = int(idx_str)
-            if idx in index_to_timestamps:
-                start, end = index_to_timestamps[idx]
-                corrected_segments.append((start, end, corrected_text.strip()))
-        except (ValueError, AttributeError):
+            if idx in index_to_timestamps and isinstance(corrected_text, str):
+                corrected_text_by_index[idx] = corrected_text.strip()
+        except (TypeError, ValueError):
             # Skip invalid entries
             continue
+
+    corrected_segments = []
+    for idx, start, end, _ in indexed_batch:
+        if idx in corrected_text_by_index:
+            corrected_segments.append((start, end, corrected_text_by_index[idx]))
 
     return corrected_segments
 
@@ -371,6 +378,8 @@ def process_batch_with_agent_loop(
                 else:
                     parsed_json = json.loads(cleaned_text)
 
+                result_segments = parse_json_to_segments(parsed_json, indexed_batch)
+
             except Exception as e:
                 if step < config.max_retries - 1:
                     # Add error feedback and retry
@@ -388,8 +397,6 @@ def process_batch_with_agent_loop(
                     logging.error("All parsing attempts failed, using original text")
                     return [(start, end, text) for _, start, end, text in indexed_batch]
 
-            # Convert JSON to segments
-            result_segments = parse_json_to_segments(parsed_json, indexed_batch)
             last_result = result_segments
 
             # Validate result
