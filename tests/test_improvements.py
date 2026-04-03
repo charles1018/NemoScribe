@@ -275,10 +275,19 @@ def test_decoding_config() -> TestResult:
         disabled_cfg = DecodingConfig(segment_separators=[])
         assert disabled_cfg.segment_separators == []
 
+        # segment_gap_threshold should default to None
+        assert cfg.segment_gap_threshold is None, (
+            f"Default segment_gap_threshold should be None, got {cfg.segment_gap_threshold}"
+        )
+
+        # Test custom segment_gap_threshold
+        gap_cfg = DecodingConfig(segment_gap_threshold=20)
+        assert gap_cfg.segment_gap_threshold == 20
+
         return TestResult(
             name="decoding_config",
             passed=True,
-            message="DecodingConfig works correctly with CUDA graphs and segment_separators",
+            message="DecodingConfig works correctly with CUDA graphs, segment_separators, and segment_gap_threshold",
         )
 
     except AssertionError as e:

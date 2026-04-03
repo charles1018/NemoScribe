@@ -195,6 +195,13 @@ class DecodingConfig:
     # Set to empty list to disable punctuation-based splitting
     segment_separators: List[str] = field(default_factory=lambda: [".", "?", "!"])
 
+    # Segment gap threshold (in frames) for timing-based segment splitting
+    # When set, a new segment is formed if the gap between two consecutive words
+    # exceeds this threshold. Complements punctuation-based segment_separators.
+    # Useful for content with natural pauses (e.g., drama dialogues).
+    # Set to None to disable (default). Typical values: 10-50 frames.
+    segment_gap_threshold: Optional[int] = None
+
 
 @dataclass
 class PerformanceConfig:

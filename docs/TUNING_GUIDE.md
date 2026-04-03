@@ -179,6 +179,7 @@ uv run nemoscribe \
 | `audio.smart_segmentation` | `true` | 聰明地在靜音處切分。 |
 | `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
 | `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
+| `decoding.segment_gap_threshold` | `None` | 基於詞間隔的段落分割（單位：幀）。當兩個連續詞之間的間隔超過此閾值時，強制分割為新段落。與 `segment_separators` 互補使用。 |
 | `vad.enabled` | `true` | **永遠開啟**。這是避免幻覺（Hallucination）的唯一解法。 |
 
 ---
@@ -318,7 +319,12 @@ uv run nemoscribe video_path="影片.mp4" pretrained_name="nvidia/parakeet-tdt-0
    vad.min_duration_off=0.05  # 預設 0.2
    ```
 
-3. 如果仍有超長段落，這可能是連續快速對話沒有靜音間隙的正常現象。
+3. **使用 `segment_gap_threshold` 基於詞間隔分割**（NeMo 原生功能）：
+   ```bash
+   decoding.segment_gap_threshold=20  # 當詞間隔超過 20 幀時分割
+   ```
+
+4. 如果仍有超長段落，這可能是連續快速對話沒有靜音間隙的正常現象。
 
 ### Q: 如何確認 CUDA/GPU 是否正常運作？
 **A:** 執行以下指令檢查：

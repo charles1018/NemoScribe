@@ -77,6 +77,10 @@ def setup_decoding_strategy(
         logging.debug("Model does not support decoding strategy changes")
         return
 
+    # Log info strings shared by both RNNT and CTC branches
+    sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
+    gap_info = f", segment_gap_threshold={cfg.segment_gap_threshold}" if cfg.segment_gap_threshold is not None else ""
+
     # Check model type - RNNT/TDT models have 'joint' module
     if hasattr(asr_model, 'joint'):
         # RNNT/TDT model
@@ -98,15 +102,18 @@ def setup_decoding_strategy(
             if cfg.segment_separators:
                 decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
+            # Set segment gap threshold for timing-based splitting
+            if cfg.segment_gap_threshold is not None:
+                decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
+
             decoding_cfg = RNNTDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
 
             cuda_graphs_status = "enabled" if cfg.rnnt_fused_batch_size == -1 else "disabled"
-            sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
             logging.info(
                 f"Applied RNNT decoding config: "
                 f"fused_batch_size={cfg.rnnt_fused_batch_size} (CUDA graphs {cuda_graphs_status}), "
-                f"timestamp_type={cfg.rnnt_timestamp_type}{sep_info}"
+                f"timestamp_type={cfg.rnnt_timestamp_type}{sep_info}{gap_info}"
             )
 
         except Exception as e:
@@ -129,12 +136,15 @@ def setup_decoding_strategy(
             if cfg.segment_separators:
                 decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
+            # Set segment gap threshold for timing-based splitting
+            if cfg.segment_gap_threshold is not None:
+                decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
+
             decoding_cfg = CTCDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
 
-            sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
             logging.info(
-                f"Applied CTC decoding config: timestamp_type={cfg.ctc_timestamp_type}{sep_info}"
+                f"Applied CTC decoding config: timestamp_type={cfg.ctc_timestamp_type}{sep_info}{gap_info}"
             )
 
         except Exception as e:
