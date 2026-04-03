@@ -6,25 +6,24 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-    "torch>=2.0",
-    "nemo_toolkit[asr]",
-    "hydra-core>=1.3",
-    "omegaconf>=2.3",
+    "torch>=2.11,<2.12",
+    "nemo_toolkit[asr]>=2.7.2,<2.8",
+    "hydra-core>=1.3.2",
+    "omegaconf>=2.3.0",
     "onnx<1.18",
-    "ml_dtypes>=0.3,<0.5",
 ]
 
 [project.optional-dependencies]
 # ITN (Inverse Text Normalization) for converting spoken forms to written forms
 # e.g., "twenty five dollars" -> "$25"
 # Note: pynini dependency can be tricky to install on some systems
-itn = ["nemo_text_processing>=1.0.0"]
+itn = ["nemo_text_processing>=1.1.0"]
 # Benchmark evaluation tools
-benchmark = ["jiwer>=3.0.0"]
+benchmark = ["jiwer>=3.1,<4"]
 # LLM post-processing for fixing transcription errors
-llm = ["anthropic>=0.40.0", "openai>=1.0.0", "python-dotenv>=1.0.0", "json-repair>=0.25.0"]
+llm = ["anthropic>=0.88.0,<1", "openai>=2.30.0,<3", "python-dotenv>=1.2.2,<2", "json-repair>=0.58.7,<1"]
 # All optional features
-all = ["nemo_text_processing>=1.0.0", "jiwer>=3.0.0", "anthropic>=0.40.0", "openai>=1.0.0", "python-dotenv>=1.0.0", "json-repair>=0.25.0"]
+all = ["nemo_text_processing>=1.1.0", "jiwer>=3.1,<4", "anthropic>=0.88.0,<1", "openai>=2.30.0,<3", "python-dotenv>=1.2.2,<2", "json-repair>=0.58.7,<1"]
 
 
 [project.scripts]
