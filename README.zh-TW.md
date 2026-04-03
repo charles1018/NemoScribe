@@ -196,13 +196,18 @@ uv run nemoscribe video_path=video.mp4 \
 
 # 調整 VAD 靈敏度（戲劇/電影最佳化設定）
 uv run nemoscribe video_path=video.mp4 \
+  compute_dtype=float32 \
   vad.enabled=true \
   vad.onset=0.2 \
   vad.offset=0.1 \
   vad.min_duration_off=0.05 \
   vad.pad_onset=0.1 \
-  vad.pad_offset=0.1
+  vad.pad_offset=0.1 \
+  decoding.rnnt_fused_batch_size=0 \
+  decoding.segment_gap_threshold=20
 ```
+
+2026-04-04 以 Chicago Fire S12E01 實測，這組設定在 RTX 3070 Laptop GPU + NeMo 2.7.2 上可穩定跑完；把 `decoding.segment_gap_threshold` 降到 `15` 或 `10` 都沒有再把最長字幕壓得更短。
 
 ### ITN（逆文字正規化）
 
@@ -318,7 +323,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `rnnt_timestamp_type` | "all" | 時間戳記類型："char"、"word"、"segment"、"all" |
 | `ctc_timestamp_type` | "all" | CTC 時間戳記類型 |
 | `segment_separators` | `[".", "?", "!"]` | 在標點符號處分割片段 |
-| `segment_gap_threshold` | None | 當詞間隔超過閾值時分割片段（單位：幀） |
+| `segment_gap_threshold` | None | 正整數（單位：幀）；當詞間隔過大時分割片段，且可與 `segment_separators` 同時使用 |
 
 ### 後處理 (`postprocessing.*`)
 

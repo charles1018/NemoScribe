@@ -44,6 +44,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, List, Optional, Tuple
 
 
@@ -253,6 +254,7 @@ def test_itn_functions() -> TestResult:
 def test_decoding_config() -> TestResult:
     """Test decoding configuration dataclass."""
     from nemoscribe import DecodingConfig
+    from nemoscribe.srt import validate_segment_gap_threshold
 
     try:
         cfg = DecodingConfig()
@@ -283,11 +285,25 @@ def test_decoding_config() -> TestResult:
         # Test custom segment_gap_threshold
         gap_cfg = DecodingConfig(segment_gap_threshold=20)
         assert gap_cfg.segment_gap_threshold == 20
+        validate_segment_gap_threshold(gap_cfg.segment_gap_threshold)
+
+        # segment_gap_threshold must be positive when enabled
+        try:
+            validate_segment_gap_threshold(0)
+            assert False, "segment_gap_threshold=0 should raise ValueError"
+        except ValueError:
+            pass  # Expected
+
+        try:
+            validate_segment_gap_threshold(-1)
+            assert False, "segment_gap_threshold=-1 should raise ValueError"
+        except ValueError:
+            pass  # Expected
 
         return TestResult(
             name="decoding_config",
             passed=True,
-            message="DecodingConfig works correctly with CUDA graphs, segment_separators, and segment_gap_threshold",
+            message="DecodingConfig works correctly with CUDA graphs and validated segment splitting settings",
         )
 
     except AssertionError as e:
@@ -497,7 +513,7 @@ def test_quality_metrics() -> TestResult:
 
 def test_srt_formatting() -> TestResult:
     """Test SRT timestamp and segment formatting."""
-    from nemoscribe import clip_segments_to_window, format_srt_timestamp
+    from nemoscribe import clip_segments_to_window, format_srt_timestamp, hypothesis_to_srt_segments
 
     try:
         # Test timestamp formatting
@@ -516,10 +532,59 @@ def test_srt_formatting() -> TestResult:
         assert len(clipped) == 1, f"Expected 1 segment in window, got {len(clipped)}"
         assert clipped[0][2] == "In window"
 
+        # Combined punctuation + frame-gap splitting should preserve punctuation cuts
+        punctuation_hypothesis = SimpleNamespace(
+            text="Hello world. Again",
+            timestamp={
+                "segment": [
+                    {"segment": "Hello world. Again", "start": 0.0, "end": 1.5},
+                ],
+                "word": [
+                    {"word": "Hello", "start": 0.0, "end": 0.4, "start_offset": 0, "end_offset": 4},
+                    {"word": "world.", "start": 0.5, "end": 0.9, "start_offset": 5, "end_offset": 9},
+                    {"word": "Again", "start": 1.0, "end": 1.5, "start_offset": 10, "end_offset": 15},
+                ],
+            },
+        )
+        punctuation_segments = hypothesis_to_srt_segments(
+            punctuation_hypothesis,
+            max_chars_per_line=42,
+            max_segment_duration=10.0,
+            word_gap_threshold=None,
+            segment_separators=["."],
+            segment_gap_threshold_frames=20,
+        )
+        assert [segment[2] for segment in punctuation_segments] == ["Hello world.", "Again"], (
+            f"Expected punctuation split to be preserved, got {punctuation_segments}"
+        )
+
+        # Frame-gap splitting should still work when punctuation splitting is disabled
+        gap_hypothesis = SimpleNamespace(
+            text="Hello again there",
+            timestamp={
+                "word": [
+                    {"word": "Hello", "start": 0.0, "end": 0.3, "start_offset": 0, "end_offset": 3},
+                    {"word": "again", "start": 0.4, "end": 0.7, "start_offset": 4, "end_offset": 7},
+                    {"word": "there", "start": 1.4, "end": 1.8, "start_offset": 20, "end_offset": 24},
+                ],
+            },
+        )
+        gap_segments = hypothesis_to_srt_segments(
+            gap_hypothesis,
+            max_chars_per_line=42,
+            max_segment_duration=10.0,
+            word_gap_threshold=None,
+            segment_separators=[],
+            segment_gap_threshold_frames=10,
+        )
+        assert [segment[2] for segment in gap_segments] == ["Hello again", "there"], (
+            f"Expected frame-gap split, got {gap_segments}"
+        )
+
         return TestResult(
             name="srt_formatting",
             passed=True,
-            message="SRT formatting and clipping work correctly",
+            message="SRT formatting and segment reconstruction work correctly",
         )
 
     except AssertionError as e:

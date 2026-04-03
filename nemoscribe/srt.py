@@ -27,9 +27,137 @@ This module handles SRT file generation and timestamp formatting.
 """
 
 from datetime import timedelta
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from nemo.collections.asr.parts.utils.rnnt_utils import Hypothesis
+
+
+def validate_segment_gap_threshold(segment_gap_threshold_frames: Optional[int]) -> None:
+    """
+    Validate frame-based segment gap splitting configuration.
+
+    Args:
+        segment_gap_threshold_frames: Optional gap threshold in decoder frames
+
+    Raises:
+        ValueError: If the threshold is not a positive integer
+    """
+    if segment_gap_threshold_frames is not None and segment_gap_threshold_frames <= 0:
+        raise ValueError("decoding.segment_gap_threshold must be a positive integer or None")
+
+
+def _word_ends_segment(word: str, segment_separators: Optional[List[str]]) -> bool:
+    """
+    Check whether a decoded word should terminate the current segment.
+
+    Args:
+        word: Decoded word text
+        segment_separators: Tokens that should terminate a segment
+
+    Returns:
+        True if the word ends a segment, False otherwise
+    """
+    if not segment_separators:
+        return False
+    return word in segment_separators or any(word.endswith(separator) for separator in segment_separators)
+
+
+def _word_gap_exceeds_threshold(
+    previous_word: Dict,
+    current_word: Dict,
+    segment_gap_threshold_frames: Optional[int],
+) -> bool:
+    """
+    Check whether two words should be split based on decoder frame offsets.
+
+    Args:
+        previous_word: Previous decoded word timestamp entry
+        current_word: Current decoded word timestamp entry
+        segment_gap_threshold_frames: Gap threshold in decoder frames
+
+    Returns:
+        True when the inter-word gap exceeds the configured threshold
+    """
+    if segment_gap_threshold_frames is None:
+        return False
+
+    previous_end_offset = previous_word.get("end_offset")
+    current_start_offset = current_word.get("start_offset")
+    if previous_end_offset is None or current_start_offset is None:
+        return False
+
+    return (current_start_offset - previous_end_offset) >= segment_gap_threshold_frames
+
+
+def _segments_from_word_timestamps(
+    words_data: List[Dict],
+    max_chars_per_line: int,
+    max_segment_duration: float,
+    word_gap_threshold: Optional[float],
+    segment_separators: Optional[List[str]],
+    segment_gap_threshold_frames: Optional[int],
+) -> List[Tuple[float, float, str]]:
+    """
+    Convert word timestamps into subtitle segments.
+
+    Supports punctuation-based splitting, frame-gap splitting, subtitle gap
+    splitting, and the existing line length / duration guards.
+    """
+    validate_segment_gap_threshold(segment_gap_threshold_frames)
+
+    segments: List[Tuple[float, float, str]] = []
+    current_words: List[str] = []
+    current_start: Optional[float] = None
+    current_end: Optional[float] = None
+    previous_word_info: Optional[Dict] = None
+    previous_word_text: Optional[str] = None
+
+    def flush_current_segment() -> None:
+        nonlocal current_words, current_start, current_end
+        if current_words and current_start is not None and current_end is not None:
+            text = " ".join(current_words)
+            if text:
+                segments.append((current_start, current_end, text))
+        current_words = []
+        current_start = None
+        current_end = None
+
+    for word_info in words_data:
+        word = word_info.get("word", word_info.get("text", "")).strip()
+        if not word:
+            continue
+
+        start = word_info["start"]
+        end = word_info["end"]
+
+        should_split_before_word = False
+        if current_words and previous_word_info is not None and current_end is not None:
+            if word_gap_threshold is not None and (start - current_end) >= word_gap_threshold:
+                should_split_before_word = True
+            elif _word_gap_exceeds_threshold(previous_word_info, word_info, segment_gap_threshold_frames):
+                should_split_before_word = True
+            elif previous_word_text is not None and _word_ends_segment(previous_word_text, segment_separators):
+                should_split_before_word = True
+
+        if should_split_before_word:
+            flush_current_segment()
+
+        if current_start is None:
+            current_start = start
+
+        current_words.append(word)
+        current_end = end
+
+        current_text = " ".join(current_words)
+        current_duration = current_end - current_start
+        if len(current_text) >= max_chars_per_line or current_duration >= max_segment_duration:
+            flush_current_segment()
+
+        previous_word_info = word_info
+        previous_word_text = word
+
+    flush_current_segment()
+    return segments
 
 
 def parse_srt_timestamp(timestamp: str) -> float:
@@ -78,6 +206,8 @@ def hypothesis_to_srt_segments(
     max_chars_per_line: int = 42,
     max_segment_duration: float = 5.0,
     word_gap_threshold: Optional[float] = 0.8,
+    segment_separators: Optional[List[str]] = None,
+    segment_gap_threshold_frames: Optional[int] = None,
 ) -> List[Tuple[float, float, str]]:
     """
     Convert NeMo Hypothesis to SRT segments.
@@ -92,10 +222,13 @@ def hypothesis_to_srt_segments(
         max_chars_per_line: Maximum characters per subtitle line
         max_segment_duration: Maximum duration for a subtitle segment
         word_gap_threshold: Create new segment if gap between words exceeds this
+        segment_separators: Split segments after words ending in these tokens
+        segment_gap_threshold_frames: Split segments when inter-word frame gaps exceed this
 
     Returns:
         List of (start_time, end_time, text) tuples
     """
+    validate_segment_gap_threshold(segment_gap_threshold_frames)
     segments = []
 
     # Get timestamp data from hypothesis
@@ -112,6 +245,12 @@ def hypothesis_to_srt_segments(
             if avg_seg_duration > max_segment_duration * 2:
                 use_word_level = True
 
+    # NeMo's native segment builder treats frame-gap splitting and punctuation
+    # splitting as mutually exclusive. When both are configured, rebuild segments
+    # from word timestamps so both rules can stay active.
+    if segment_gap_threshold_frames is not None and segment_separators and "word" in timestamps:
+        use_word_level = True
+
     # Strategy 1: Use segment-level timestamps if available and not too coarse
     if "segment" in timestamps and not use_word_level:
         for seg in timestamps["segment"]:
@@ -124,57 +263,14 @@ def hypothesis_to_srt_segments(
 
     # Strategy 2: Use word-level timestamps
     if "word" in timestamps:
-        words_data = timestamps["word"]
-        current_words = []
-        current_start = None
-        current_end = None
-
-        for word_info in words_data:
-            word = word_info.get("word", word_info.get("text", "")).strip()
-            if not word:
-                continue
-
-            start = word_info["start"]
-            end = word_info["end"]
-
-            # Check for gap-based split
-            if (
-                current_words
-                and current_end is not None
-                and word_gap_threshold is not None
-                and (start - current_end) >= word_gap_threshold
-            ):
-                text = " ".join(current_words)
-                if text:
-                    segments.append((current_start, current_end, text))
-                current_words = []
-                current_start = None
-                current_end = None
-
-            if current_start is None:
-                current_start = start
-
-            current_words.append(word)
-            current_end = end
-
-            # Check for length/duration-based split
-            current_text = " ".join(current_words)
-            current_duration = current_end - current_start
-
-            if len(current_text) >= max_chars_per_line or current_duration >= max_segment_duration:
-                if current_text:
-                    segments.append((current_start, current_end, current_text))
-                current_words = []
-                current_start = None
-                current_end = None
-
-        # Flush remaining words
-        if current_words:
-            text = " ".join(current_words)
-            if text:
-                segments.append((current_start, current_end, text))
-
-        return segments
+        return _segments_from_word_timestamps(
+            words_data=timestamps["word"],
+            max_chars_per_line=max_chars_per_line,
+            max_segment_duration=max_segment_duration,
+            word_gap_threshold=word_gap_threshold,
+            segment_separators=segment_separators,
+            segment_gap_threshold_frames=segment_gap_threshold_frames,
+        )
 
     # Strategy 3: Fallback - proportional allocation
     text = getattr(hypothesis, "text", "") or ""

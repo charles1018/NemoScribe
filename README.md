@@ -196,13 +196,18 @@ uv run nemoscribe video_path=video.mp4 \
 
 # Adjust VAD sensitivity (optimized for drama/movie)
 uv run nemoscribe video_path=video.mp4 \
+  compute_dtype=float32 \
   vad.enabled=true \
   vad.onset=0.2 \
   vad.offset=0.1 \
   vad.min_duration_off=0.05 \
   vad.pad_onset=0.1 \
-  vad.pad_offset=0.1
+  vad.pad_offset=0.1 \
+  decoding.rnnt_fused_batch_size=0 \
+  decoding.segment_gap_threshold=20
 ```
+
+Chicago Fire S12E01 validation on 2026-04-04 showed that this profile was stable on an RTX 3070 Laptop GPU with NeMo 2.7.2. Lowering `decoding.segment_gap_threshold` to `15` or `10` did not reduce the longest subtitle further.
 
 ### ITN (Inverse Text Normalization)
 
@@ -318,7 +323,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `rnnt_timestamp_type` | "all" | Timestamp type: "char", "word", "segment", "all" |
 | `ctc_timestamp_type` | "all" | CTC timestamp type |
 | `segment_separators` | `[".", "?", "!"]` | Split segments at punctuation marks |
-| `segment_gap_threshold` | None | Split segments when inter-word gap exceeds threshold (frames) |
+| `segment_gap_threshold` | None | Positive integer in frames; splits on large inter-word gaps and remains compatible with `segment_separators` |
 
 ### Post-processing (`postprocessing.*`)
 

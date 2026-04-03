@@ -197,9 +197,10 @@ class DecodingConfig:
 
     # Segment gap threshold (in frames) for timing-based segment splitting
     # When set, a new segment is formed if the gap between two consecutive words
-    # exceeds this threshold. Complements punctuation-based segment_separators.
+    # exceeds this threshold. If segment_separators is also enabled, NemoScribe
+    # preserves punctuation-based splits and adds frame-gap splits on top.
     # Useful for content with natural pauses (e.g., drama dialogues).
-    # Set to None to disable (default). Typical values: 10-50 frames.
+    # Set to None to disable (default). Must be > 0. Typical values: 10-50 frames.
     segment_gap_threshold: Optional[int] = None
 
 

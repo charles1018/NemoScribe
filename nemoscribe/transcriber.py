@@ -51,7 +51,12 @@ from nemoscribe.postprocess import (
     deduplicate_segments,
     merge_overlapping_segments,
 )
-from nemoscribe.srt import clip_segments_to_window, hypothesis_to_srt_segments, write_srt_file
+from nemoscribe.srt import (
+    clip_segments_to_window,
+    hypothesis_to_srt_segments,
+    validate_segment_gap_threshold,
+    write_srt_file,
+)
 from nemoscribe.vad import create_audio_chunks_with_vad, run_vad_on_audio
 
 # =============================================================================
@@ -73,9 +78,18 @@ def setup_decoding_strategy(
         asr_model: Loaded ASR model
         cfg: Decoding configuration
     """
+    validate_segment_gap_threshold(cfg.segment_gap_threshold)
+
     if not hasattr(asr_model, 'change_decoding_strategy'):
         logging.debug("Model does not support decoding strategy changes")
         return
+
+    use_local_gap_segmentation = cfg.segment_gap_threshold is not None and bool(cfg.segment_separators)
+    if use_local_gap_segmentation:
+        logging.info(
+            "segment_gap_threshold will be applied during subtitle segmentation so "
+            "punctuation-based segment_separators remain active"
+        )
 
     # Log info strings shared by both RNNT and CTC branches
     sep_info = f", segment_separators={cfg.segment_separators}" if cfg.segment_separators else ""
@@ -103,7 +117,7 @@ def setup_decoding_strategy(
                 decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
             # Set segment gap threshold for timing-based splitting
-            if cfg.segment_gap_threshold is not None:
+            if cfg.segment_gap_threshold is not None and not use_local_gap_segmentation:
                 decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
 
             decoding_cfg = RNNTDecodingConfig(**decoding_kwargs)
@@ -137,7 +151,7 @@ def setup_decoding_strategy(
                 decoding_kwargs["segment_seperators"] = cfg.segment_separators
 
             # Set segment gap threshold for timing-based splitting
-            if cfg.segment_gap_threshold is not None:
+            if cfg.segment_gap_threshold is not None and not use_local_gap_segmentation:
                 decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
 
             decoding_cfg = CTCDecodingConfig(**decoding_kwargs)
@@ -287,6 +301,8 @@ def transcribe_audio_chunk(
         max_chars_per_line=cfg.subtitle.max_chars_per_line,
         max_segment_duration=cfg.subtitle.max_segment_duration,
         word_gap_threshold=cfg.subtitle.word_gap_threshold,
+        segment_separators=cfg.decoding.segment_separators,
+        segment_gap_threshold_frames=cfg.decoding.segment_gap_threshold,
     )
 
     # Apply time offset

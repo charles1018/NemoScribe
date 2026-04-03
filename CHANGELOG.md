@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `decoding.segment_gap_threshold` now validates as a positive integer instead of silently accepting `0` or negative values
+- Subtitle segmentation now preserves punctuation-based `segment_separators` when `segment_gap_threshold` is also enabled
+
+### Documentation
+
+- Clarified that `segment_gap_threshold` is frame-based, must be positive, and can be combined with punctuation splitting
+- Documented the Chicago Fire drama validation profile: `compute_dtype=float32`, `decoding.rnnt_fused_batch_size=0`, and `decoding.segment_gap_threshold=20`
+
 ## [0.4.0] - 2026-03-26
 
 ### Added
