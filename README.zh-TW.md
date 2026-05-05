@@ -155,6 +155,9 @@ uv run nemoscribe video_path="video.mp4"
 # 啟用 VAD（建議以獲得更好的品質）
 uv run nemoscribe video_path="video.mp4" vad.enabled=true
 
+# 同時產生 VAD 與 no-VAD 候選字幕
+uv run nemoscribe video_path="video.mp4" ab_test.vad=true
+
 # 批次處理
 uv run nemoscribe video_dir=/path/to/videos/ output_dir=/path/to/subtitles/
 ```
@@ -210,6 +213,18 @@ uv run nemoscribe video_path=video.mp4 \
 ```
 
 2026-04-04 以 Chicago Fire S12E01 實測，這組設定在 RTX 3070 Laptop GPU + NeMo 2.7.2 上可穩定跑完；把 `decoding.segment_gap_threshold` 降到 `15` 或 `10` 都沒有再把最長字幕壓得更短。
+
+### VAD A/B 測試
+
+```bash
+uv run nemoscribe video_path=video.mp4 \
+  output_path=tmp_outputs/video.srt \
+  compute_dtype=float32 \
+  decoding.rnnt_fused_batch_size=0 \
+  ab_test.vad=true
+```
+
+這會用同一組 ASR 設定同時寫出 `video.vad.srt` 與 `video.no_vad.srt`，適合想比較候選字幕、但不想手動跑兩次指令的情境。
 
 ### ITN（逆文字正規化）
 
@@ -336,6 +351,12 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `enable_itn` | false | 啟用逆文字正規化 |
 | `itn_lang` | "en" | ITN 語言 |
 | `itn_input_case` | "lower_cased" | 輸入大小寫："lower_cased" 或 "cased" |
+
+### A/B 測試 (`ab_test.*`)
+
+| 選項 | 預設值 | 說明 |
+|------|--------|------|
+| `vad` | false | 同時產生 `.vad.srt` 與 `.no_vad.srt` 候選字幕 |
 
 ### LLM 後處理 (`llm_postprocess.*`)
 

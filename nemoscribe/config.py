@@ -224,6 +224,19 @@ class PerformanceConfig:
 
 
 @dataclass
+class ABTestConfig:
+    """
+    Configuration for automatic comparison runs.
+
+    These options produce multiple candidate SRT files with minimal extra
+    configuration from the user. They do not score quality by themselves.
+    """
+
+    # Generate both VAD and no-VAD outputs for each input video.
+    vad: bool = False
+
+
+@dataclass
 class LoggingConfig:
     """
     Configuration for logging behavior.
@@ -291,6 +304,9 @@ class VideoToSRTConfig:
 
     # Performance measurement
     performance: PerformanceConfig = field(default_factory=PerformanceConfig)
+
+    # Automatic comparison runs
+    ab_test: ABTestConfig = field(default_factory=ABTestConfig)
 
     # Logging configuration
     logging: LoggingConfig = field(default_factory=LoggingConfig)

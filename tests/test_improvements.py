@@ -518,6 +518,65 @@ def test_performance_config() -> TestResult:
         )
 
 
+def test_ab_test_config() -> TestResult:
+    """Test A/B test configuration defaults and CLI parsing."""
+    from nemoscribe import ABTestConfig, VideoToSRTConfig
+    from nemoscribe.cli import _resolve_output_path, _vad_ab_variants, parse_args
+
+    try:
+        ab_cfg = ABTestConfig()
+        assert ab_cfg.vad is False, "VAD A/B test should be disabled by default"
+
+        cfg = VideoToSRTConfig()
+        cfg = parse_args(["ab_test.vad=true"], cfg)
+        assert cfg.ab_test.vad is True, "CLI should enable VAD A/B mode"
+
+        variants = _vad_ab_variants(cfg)
+        assert [suffix for suffix, _ in variants] == ["vad", "no_vad"], (
+            f"Expected vad/no_vad variants, got {variants}"
+        )
+        assert variants[0][1].vad.enabled is True
+        assert variants[1][1].vad.enabled is False
+        assert cfg.vad.enabled is False, "Building variants should not mutate the original config"
+
+        output_path_cfg = VideoToSRTConfig(output_path="tmp_outputs/example.srt")
+        resolved = _resolve_output_path(
+            video_path=Path("/tmp/example.mp4"),
+            cfg=output_path_cfg,
+            output_dir=None,
+            total_videos=1,
+        )
+        assert str(resolved) == "tmp_outputs/example.srt"
+
+        output_dir_cfg = VideoToSRTConfig(output_dir="tmp_outputs")
+        resolved = _resolve_output_path(
+            video_path=Path("/tmp/example.mp4"),
+            cfg=output_dir_cfg,
+            output_dir=Path("tmp_outputs"),
+            total_videos=2,
+        )
+        assert str(resolved) == "tmp_outputs/example.srt"
+
+        return TestResult(
+            name="ab_test_config",
+            passed=True,
+            message="VAD A/B config and output path helpers work correctly",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="ab_test_config",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="ab_test_config",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
 def test_quality_metrics() -> TestResult:
     """Test transcription quality metrics calculation."""
     try:
@@ -1254,6 +1313,7 @@ def test_full_config() -> TestResult:
         assert hasattr(cfg, "postprocessing"), "Missing postprocessing config"
         assert hasattr(cfg, "decoding"), "Missing decoding config"
         assert hasattr(cfg, "performance"), "Missing performance config"
+        assert hasattr(cfg, "ab_test"), "Missing ab_test config"
         assert hasattr(cfg, "audio"), "Missing audio config"
         assert hasattr(cfg, "subtitle"), "Missing subtitle config"
         assert hasattr(cfg, "llm_postprocess"), "Missing llm_postprocess config"
@@ -1295,6 +1355,7 @@ def run_all_tests() -> List[TestResult]:
         ("smart_segmentation", test_smart_segmentation),
         ("segment_merging", test_segment_merging),
         ("performance_config", test_performance_config),
+        ("ab_test_config", test_ab_test_config),
         ("quality_metrics", test_quality_metrics),
         ("srt_formatting", test_srt_formatting),
         ("srt_edge_cases", test_srt_edge_cases),
@@ -1369,6 +1430,7 @@ def main():
             "segmentation": test_smart_segmentation,
             "merging": test_segment_merging,
             "performance": test_performance_config,
+            "ab_test": test_ab_test_config,
             "metrics": test_quality_metrics,
             "srt": test_srt_formatting,
             "srt_edge": test_srt_edge_cases,

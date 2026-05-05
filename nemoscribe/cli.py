@@ -30,6 +30,7 @@ This module handles:
 """
 
 import sys
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from typing import Any, List, Union, get_args, get_origin, get_type_hints
@@ -83,6 +84,67 @@ Requirements:
 """
 
 
+def _with_output_suffix(path: Path, suffix: str) -> Path:
+    """
+    Add a descriptive suffix before the .srt extension.
+
+    Args:
+        path: Base SRT output path
+        suffix: Suffix without leading dot
+
+    Returns:
+        Path with suffix added before extension
+    """
+    return path.with_name(f"{path.stem}.{suffix}{path.suffix}")
+
+
+def _resolve_output_path(
+    video_path: Path,
+    cfg: VideoToSRTConfig,
+    output_dir: Path | None,
+    total_videos: int,
+) -> Path:
+    """
+    Resolve the base SRT output path for one video.
+
+    Args:
+        video_path: Input video path
+        cfg: Runtime config
+        output_dir: Optional resolved output directory
+        total_videos: Number of input videos
+
+    Returns:
+        Base SRT output path before A/B suffixing
+    """
+    if cfg.output_path is not None and total_videos == 1:
+        return Path(cfg.output_path)
+    if output_dir is not None:
+        return output_dir / video_path.with_suffix(".srt").name
+    return video_path.with_suffix(".srt")
+
+
+def _vad_ab_variants(cfg: VideoToSRTConfig) -> List[tuple[str, VideoToSRTConfig]]:
+    """
+    Build VAD A/B variants when enabled.
+
+    Returns:
+        List of (suffix, config) tuples. Empty list means normal single-run mode.
+    """
+    if not cfg.ab_test.vad:
+        return []
+
+    vad_cfg = deepcopy(cfg)
+    vad_cfg.vad.enabled = True
+
+    no_vad_cfg = deepcopy(cfg)
+    no_vad_cfg.vad.enabled = False
+
+    return [
+        ("vad", vad_cfg),
+        ("no_vad", no_vad_cfg),
+    ]
+
+
 def process_videos(cfg: VideoToSRTConfig) -> List[str]:
     """
     Process video(s) based on configuration.
@@ -123,15 +185,16 @@ def process_videos(cfg: VideoToSRTConfig) -> List[str]:
     # Setup decoding strategy (CUDA graphs, timestamp types)
     setup_decoding_strategy(asr_model, cfg.decoding)
 
-    # Load VAD model if enabled
+    # Load VAD model if enabled or needed by VAD A/B mode
     vad_model = None
-    if cfg.vad.enabled:
+    if cfg.vad.enabled or cfg.ab_test.vad:
         try:
             vad_model = load_vad_model(cfg.vad.model, device)
             logging.info(f"VAD model loaded: {cfg.vad.model}")
         except Exception as e:
             logging.warning(f"Failed to load VAD model: {e}. Continuing without VAD.")
             cfg.vad.enabled = False
+            cfg.ab_test.vad = False
 
     # Initialize ITN normalizer if enabled
     itn_normalizer = None
@@ -180,35 +243,39 @@ def process_videos(cfg: VideoToSRTConfig) -> List[str]:
     generated_files = []
 
     for video_path in video_files:
-        # Determine output path
-        if cfg.output_path is not None and len(video_files) == 1:
-            srt_path = Path(cfg.output_path)
-        elif output_dir is not None:
-            srt_path = output_dir / video_path.with_suffix(".srt").name
-        else:
-            srt_path = video_path.with_suffix(".srt")
+        base_srt_path = _resolve_output_path(video_path, cfg, output_dir, len(video_files))
+        variants = _vad_ab_variants(cfg)
+        if not variants:
+            variants = [("", cfg)]
 
-        # Skip if exists and not overwriting
-        if srt_path.exists() and not cfg.overwrite:
-            logging.info(f"Skipping (exists): {srt_path}")
-            continue
+        for suffix, run_cfg in variants:
+            srt_path = _with_output_suffix(base_srt_path, suffix) if suffix else base_srt_path
 
-        try:
-            result = transcribe_video(
-                str(video_path),
-                str(srt_path),
-                asr_model,
-                cfg,
-                device,
-                vad_model=vad_model,
-                itn_normalizer=itn_normalizer,
-            )
-            generated_files.append(result)
-        except Exception as e:
-            logging.error(f"Failed to process {video_path}: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
+            # Skip if exists and not overwriting
+            if srt_path.exists() and not run_cfg.overwrite:
+                logging.info(f"Skipping (exists): {srt_path}")
+                continue
+
+            run_vad_model = vad_model if run_cfg.vad.enabled else None
+            if suffix:
+                logging.info(f"Running VAD A/B variant '{suffix}' -> {srt_path}")
+
+            try:
+                result = transcribe_video(
+                    str(video_path),
+                    str(srt_path),
+                    asr_model,
+                    run_cfg,
+                    device,
+                    vad_model=run_vad_model,
+                    itn_normalizer=itn_normalizer,
+                )
+                generated_files.append(result)
+            except Exception as e:
+                logging.error(f"Failed to process {video_path} ({suffix or 'default'}): {e}")
+                import traceback
+                traceback.print_exc()
+                continue
 
     return generated_files
 

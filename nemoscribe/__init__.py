@@ -12,6 +12,7 @@ from nemoscribe.cli import main
 
 # Configuration classes (for testing and advanced usage)
 from nemoscribe.config import (
+    ABTestConfig,
     AudioConfig,
     DecodingConfig,
     LoggingConfig,
@@ -62,6 +63,7 @@ __all__ = [
     "PostProcessingConfig",
     "DecodingConfig",
     "PerformanceConfig",
+    "ABTestConfig",
     "LoggingConfig",
     "LLMPostProcessConfig",
     # LLM post-processing

@@ -155,6 +155,9 @@ uv run nemoscribe video_path="video.mp4"
 # With VAD (recommended for better quality)
 uv run nemoscribe video_path="video.mp4" vad.enabled=true
 
+# Generate both VAD and no-VAD candidates
+uv run nemoscribe video_path="video.mp4" ab_test.vad=true
+
 # Batch processing
 uv run nemoscribe video_dir=/path/to/videos/ output_dir=/path/to/subtitles/
 ```
@@ -210,6 +213,18 @@ uv run nemoscribe video_path=video.mp4 \
 ```
 
 Chicago Fire S12E01 validation on 2026-04-04 showed that this profile was stable on an RTX 3070 Laptop GPU with NeMo 2.7.2. Lowering `decoding.segment_gap_threshold` to `15` or `10` did not reduce the longest subtitle further.
+
+### VAD A/B Test
+
+```bash
+uv run nemoscribe video_path=video.mp4 \
+  output_path=tmp_outputs/video.srt \
+  compute_dtype=float32 \
+  decoding.rnnt_fused_batch_size=0 \
+  ab_test.vad=true
+```
+
+This writes both `video.vad.srt` and `video.no_vad.srt` using the same ASR settings. Use this when you want two candidate subtitles without manually running the command twice.
 
 ### ITN (Inverse Text Normalization)
 
@@ -336,6 +351,12 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 | `enable_itn` | false | Enable Inverse Text Normalization |
 | `itn_lang` | "en" | Language for ITN |
 | `itn_input_case` | "lower_cased" | Input case: "lower_cased" or "cased" |
+
+### A/B Test (`ab_test.*`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `vad` | false | Generate both `.vad.srt` and `.no_vad.srt` candidates |
 
 ### LLM Post-processing (`llm_postprocess.*`)
 
