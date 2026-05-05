@@ -152,10 +152,10 @@ uv run python scripts/check_cuda.py
 # Basic usage
 uv run nemoscribe video_path="video.mp4"
 
-# With VAD (recommended for better quality)
+# With VAD (useful for noisy audio, but not always best)
 uv run nemoscribe video_path="video.mp4" vad.enabled=true
 
-# Generate both VAD and no-VAD candidates
+# Generate both VAD and no-VAD candidates (recommended when unsure)
 uv run nemoscribe video_path="video.mp4" ab_test.vad=true
 
 # Batch processing
@@ -212,7 +212,7 @@ uv run nemoscribe video_path=video.mp4 \
   decoding.segment_gap_threshold=20
 ```
 
-Chicago Fire S12E01 validation on 2026-04-04 showed that this profile was stable on an RTX 3070 Laptop GPU with NeMo 2.7.2. Lowering `decoding.segment_gap_threshold` to `15` or `10` did not reduce the longest subtitle further.
+Chicago Fire S12E01 validation on 2026-05-05 with NeMo 2.7.3 showed that `compute_dtype=float32` and `decoding.rnnt_fused_batch_size=0` are still the stable CUDA settings on an RTX 3070 Laptop GPU. In that sample, no-VAD produced slightly more complete output than VAD, so use `ab_test.vad=true` when you want the safer choice without manually running two commands.
 
 ### VAD A/B Test
 
@@ -224,7 +224,7 @@ uv run nemoscribe video_path=video.mp4 \
   ab_test.vad=true
 ```
 
-This writes both `video.vad.srt` and `video.no_vad.srt` using the same ASR settings. Use this when you want two candidate subtitles without manually running the command twice.
+This writes both `video.vad.srt` and `video.no_vad.srt` using the same ASR settings. Use this when you want two candidate subtitles without manually running the command twice. VAD can reduce hallucinations on noisy audio, while no-VAD may preserve more dialogue on clean drama/movie audio.
 
 ### ITN (Inverse Text Normalization)
 

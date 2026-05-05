@@ -24,27 +24,26 @@
 
 ## ⚡ 快速開始（懶人包）
 
-**第一次使用？直接複製這個指令：**
+**第一次使用？先產生 VAD / no-VAD 兩個候選版本：**
 
 ```bash
 uv run nemoscribe \
     video_path="您的影片.mp4" \
     output_path="輸出字幕.srt" \
-    vad.enabled=true \
-    vad.onset=0.2 \
-    vad.offset=0.1 \
-    audio.max_chunk_duration=60 \
-    audio.smart_segmentation=true
+    compute_dtype=float32 \
+    decoding.rnnt_fused_batch_size=0 \
+    decoding.segment_gap_threshold=20 \
+    ab_test.vad=true
 ```
 
-想要更精確的結果？請根據您的影片類型，參考下方的場景設定。
+這會輸出 `輸出字幕.vad.srt` 與 `輸出字幕.no_vad.srt`。先挑比較順的一版；想要更精確的結果，再根據影片類型參考下方的場景設定。
 
 ---
 
 ## 🏆 核心策略：為什麼需要調整？
 
 一般的 AI 字幕工具通常使用「預設值」，這就像是用一把粗糙的篩子去濾沙。我們的策略是：
-1.  **開啟 VAD（語音偵測）**：依據場景調整靈敏度，過濾雜訊或保留細節。
+1.  **比較 VAD 與 no-VAD**：VAD 可過濾雜訊與降低幻覺，但也可能切掉細微對話；no-VAD 對收音乾淨的戲劇/電影可能更完整。
 2.  **縮短切分長度 (Chunking)**：讓 AI 每分鐘「刷新」一次大腦，保持專注力。
 3.  **優化時間軸邏輯**：強制 AI 輸出完整的句子時間點。
 
@@ -54,14 +53,38 @@ uv run nemoscribe \
 **適用：** 美劇、電影、動漫。
 **特徵：** 背景音複雜、語速快、有呼救聲/氣音/低語。
 
-### 🏆 推薦參數（實測驗證最佳解）
+### 🏆 推薦流程（先比較候選版本）
 
-這是針對戲劇/電影場景經過多次實測驗證的最佳參數組合，能有效解決以下問題：
-- **幻覺問題**：AI 在靜音或背景音樂處「無中生有」產生不存在的對話
-- **遺漏問題**：細微的呼救聲、低語、氣音被忽略
-- **斷句破碎**：一句話被切成多段不完整的字幕
+戲劇/電影場景不應假設 VAD 永遠最好。建議先用同一組 ASR 設定產生 VAD 與 no-VAD 兩個候選版本，再選較自然的一版：
 
-**這是處理影劇類影片最常用的推薦設定。**
+```bash
+uv run nemoscribe \
+    video_path="您的影片.mkv" \
+    output_path="輸出字幕.srt" \
+    compute_dtype=float32 \
+    decoding.rnnt_fused_batch_size=0 \
+    decoding.segment_gap_threshold=20 \
+    ab_test.vad=true
+```
+
+這會輸出：
+
+```text
+輸出字幕.vad.srt
+輸出字幕.no_vad.srt
+```
+
+VAD 版本常見優點：
+- 背景音、音樂、沉默較多時，可減少「無中生有」的字幕
+- 切分點更傾向落在靜音處
+
+no-VAD 版本常見優點：
+- 收音乾淨時，可能保留更多短句與細微對話
+- 避免 VAD 誤判造成漏字
+
+### VAD 候選參數
+
+若您決定使用 VAD，以下是戲劇/電影場景可嘗試的 VAD 候選參數：
 
 ```bash
 uv run nemoscribe \
@@ -83,7 +106,12 @@ uv run nemoscribe \
     decoding.segment_gap_threshold=20
 ```
 
-> **Chicago Fire 實測（2026-04-04）**：以 `Chicago Fire S12E01`、RTX 3070 Laptop GPU、NeMo 2.7.2 實跑，穩定可重現的組合為 `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`。在這個條件下，`decoding.segment_gap_threshold=20` 可把最長字幕段落從 30.48s 壓到 12.48s；往下調到 `15` 或 `10` 都沒有再降低最長段落，只會增加段落數。
+這組 VAD 參數能處理以下問題：
+- **幻覺問題**：AI 在靜音或背景音樂處「無中生有」產生不存在的對話
+- **遺漏問題**：細微的呼救聲、低語、氣音被忽略
+- **斷句破碎**：一句話被切成多段不完整的字幕
+
+> **Chicago Fire 實測（2026-05-05）**：以 `Chicago Fire S12E01`、RTX 3070 Laptop GPU、NeMo 2.7.3 實跑，穩定可重現的 CUDA 組合為 `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`。在這個樣本中，no-VAD 版本的字幕段數與詞數略高，粗略 WER 也略低；VAD 版本則仍能保持長段落控制與降低背景音風險。因此建議一般使用者先跑 `ab_test.vad=true`。
 
 > **注意**：`decoding.rnnt_timestamp_type="all"` 和 `decoding.segment_separators=[".", "?", "!"]` 為預設值，無需手動設定。Chicago Fire 實測中，`segment_gap_threshold=20` 會在保留標點分段的前提下，進一步補切過長段落。
 
@@ -179,7 +207,7 @@ uv run nemoscribe \
 
 ## 🔧 通用基礎參數 (Base Config)
 
-無論哪種場景，以下參數建議**永遠保持**：
+無論哪種場景，以下參數建議作為基礎設定：
 
 | 參數 | 推薦值 | 影響 |
 | :--- | :--- | :--- |
@@ -188,7 +216,7 @@ uv run nemoscribe \
 | `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
 | `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
 | `decoding.segment_gap_threshold` | `None` | 基於詞間隔的段落分割（單位：幀，需為正整數）。當兩個連續詞之間的間隔超過此閾值時，強制分割為新段落；若同時啟用 `segment_separators`，NemoScribe 會保留標點分段並額外套用 gap 分段。 |
-| `vad.enabled` | `true` | **永遠開啟**。這是避免幻覺（Hallucination）的唯一解法。 |
+| `ab_test.vad` | `true` | 不確定 VAD 是否適合時，先同時產生 VAD / no-VAD 候選字幕。 |
 
 ---
 

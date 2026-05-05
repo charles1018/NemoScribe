@@ -152,10 +152,10 @@ uv run python scripts/check_cuda.py
 # 基本用法
 uv run nemoscribe video_path="video.mp4"
 
-# 啟用 VAD（建議以獲得更好的品質）
+# 啟用 VAD（適合背景較吵的音訊，但不一定永遠最好）
 uv run nemoscribe video_path="video.mp4" vad.enabled=true
 
-# 同時產生 VAD 與 no-VAD 候選字幕
+# 同時產生 VAD 與 no-VAD 候選字幕（不確定時建議使用）
 uv run nemoscribe video_path="video.mp4" ab_test.vad=true
 
 # 批次處理
@@ -212,7 +212,7 @@ uv run nemoscribe video_path=video.mp4 \
   decoding.segment_gap_threshold=20
 ```
 
-2026-04-04 以 Chicago Fire S12E01 實測，這組設定在 RTX 3070 Laptop GPU + NeMo 2.7.2 上可穩定跑完；把 `decoding.segment_gap_threshold` 降到 `15` 或 `10` 都沒有再把最長字幕壓得更短。
+2026-05-05 以 Chicago Fire S12E01 + NeMo 2.7.3 實測，`compute_dtype=float32` 與 `decoding.rnnt_fused_batch_size=0` 仍是在 RTX 3070 Laptop GPU 上穩定的 CUDA 設定。這個樣本中 no-VAD 的內容略完整於 VAD，因此不確定時建議使用 `ab_test.vad=true`，不必手動跑兩次指令。
 
 ### VAD A/B 測試
 
@@ -224,7 +224,7 @@ uv run nemoscribe video_path=video.mp4 \
   ab_test.vad=true
 ```
 
-這會用同一組 ASR 設定同時寫出 `video.vad.srt` 與 `video.no_vad.srt`，適合想比較候選字幕、但不想手動跑兩次指令的情境。
+這會用同一組 ASR 設定同時寫出 `video.vad.srt` 與 `video.no_vad.srt`，適合想比較候選字幕、但不想手動跑兩次指令的情境。VAD 對背景較吵的音訊可減少幻覺；no-VAD 則可能在收音乾淨的戲劇/電影中保留更多對話。
 
 ### ITN（逆文字正規化）
 
