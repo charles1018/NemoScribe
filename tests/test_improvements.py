@@ -320,6 +320,60 @@ def test_decoding_config() -> TestResult:
         )
 
 
+def test_nemo_api_compatibility() -> TestResult:
+    """Test compatibility shims against the installed NeMo decoding config classes."""
+    from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
+    from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
+
+    from nemoscribe.transcriber import _add_decoding_kwarg
+
+    try:
+        rnnt_kwargs = {}
+        _add_decoding_kwarg(
+            rnnt_kwargs,
+            RNNTDecodingConfig,
+            [".", "?", "!"],
+            "segment_separators",
+            "segment_seperators",
+        )
+        assert any(key in rnnt_kwargs for key in ("segment_separators", "segment_seperators")), (
+            f"Expected RNNT segment separator alias to be selected, got {rnnt_kwargs}"
+        )
+        RNNTDecodingConfig(**rnnt_kwargs)
+
+        ctc_kwargs = {}
+        _add_decoding_kwarg(
+            ctc_kwargs,
+            CTCDecodingConfig,
+            [".", "?", "!"],
+            "segment_separators",
+            "segment_seperators",
+        )
+        assert any(key in ctc_kwargs for key in ("segment_separators", "segment_seperators")), (
+            f"Expected CTC segment separator alias to be selected, got {ctc_kwargs}"
+        )
+        CTCDecodingConfig(**ctc_kwargs)
+
+        return TestResult(
+            name="nemo_api_compatibility",
+            passed=True,
+            message="NeMo decoding config aliases are compatible with installed RNNT/CTC classes",
+        )
+
+    except AssertionError as e:
+        return TestResult(
+            name="nemo_api_compatibility",
+            passed=False,
+            message=f"Assertion failed: {e}",
+        )
+    except Exception as e:
+        return TestResult(
+            name="nemo_api_compatibility",
+            passed=False,
+            message=f"Exception: {e}",
+        )
+
+
 def test_smart_segmentation() -> TestResult:
     """Test smart segmentation functions."""
     from nemoscribe import (
@@ -579,6 +633,36 @@ def test_srt_formatting() -> TestResult:
         )
         assert [segment[2] for segment in gap_segments] == ["Hello again", "there"], (
             f"Expected frame-gap split, got {gap_segments}"
+        )
+
+        # NeMo Hypothesis defaults timestamp to a list; this should fall back to text without crashing.
+        list_timestamp_hypothesis = SimpleNamespace(text="fallback text only", timestamp=[])
+        fallback_segments = hypothesis_to_srt_segments(
+            list_timestamp_hypothesis,
+            max_chars_per_line=42,
+            max_segment_duration=10.0,
+        )
+        assert fallback_segments == [(0.0, 1.2, "fallback text only")], (
+            f"Expected proportional fallback, got {fallback_segments}"
+        )
+
+        # Some timestamp utilities return object-like entries instead of dicts.
+        object_timestamp_hypothesis = SimpleNamespace(
+            text="Hello object",
+            timestamp={
+                "word": [
+                    SimpleNamespace(word="Hello", start=0.0, end=0.4, start_offset=0, end_offset=4),
+                    SimpleNamespace(word="object", start=0.5, end=0.9, start_offset=5, end_offset=10),
+                ],
+            },
+        )
+        object_segments = hypothesis_to_srt_segments(
+            object_timestamp_hypothesis,
+            max_chars_per_line=42,
+            max_segment_duration=10.0,
+        )
+        assert object_segments == [(0.0, 0.9, "Hello object")], (
+            f"Expected object-like timestamp entries to parse, got {object_segments}"
         )
 
         return TestResult(
@@ -1103,6 +1187,56 @@ def test_llm_fallback() -> TestResult:
         return TestResult(name="llm_fallback", passed=False, message=f"Exception: {e}")
 
 
+def test_llm_validation_fallback() -> TestResult:
+    """Test that invalid LLM corrections fall back to the original batch."""
+    from types import SimpleNamespace
+
+    from nemoscribe.llm_postprocess import LLMPostProcessConfig, process_batch_with_agent_loop
+
+    class FakeOpenAIClient:
+        def __init__(self, response_text: str):
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **_: SimpleNamespace(
+                        choices=[
+                            SimpleNamespace(
+                                message=SimpleNamespace(content=response_text),
+                            )
+                        ]
+                    )
+                )
+            )
+
+    try:
+        indexed_batch = [
+            (1, 0.0, 2.0, "And it's taken six months for us to even try"),
+        ]
+        invalid_response = '{"1": "case."}'
+        config = LLMPostProcessConfig(provider="openai", model="gpt-4o-mini", max_retries=1)
+
+        result = process_batch_with_agent_loop(
+            client=FakeOpenAIClient(invalid_response),
+            indexed_batch=indexed_batch,
+            config=config,
+            provider="openai",
+        )
+
+        assert result == [(0.0, 2.0, "And it's taken six months for us to even try")], (
+            f"Invalid LLM correction should fall back to original, got {result}"
+        )
+
+        return TestResult(
+            name="llm_validation_fallback",
+            passed=True,
+            message="Invalid LLM corrections fall back to original batch",
+        )
+
+    except AssertionError as e:
+        return TestResult(name="llm_validation_fallback", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_validation_fallback", passed=False, message=f"Exception: {e}")
+
+
 def test_full_config() -> TestResult:
     """Test full VideoToSRTConfig with all sub-configs."""
     from nemoscribe import VideoToSRTConfig
@@ -1157,6 +1291,7 @@ def run_all_tests() -> List[TestResult]:
         ("vad_config", test_vad_config),
         ("itn_functions", test_itn_functions),
         ("decoding_config", test_decoding_config),
+        ("nemo_api_compatibility", test_nemo_api_compatibility),
         ("smart_segmentation", test_smart_segmentation),
         ("segment_merging", test_segment_merging),
         ("performance_config", test_performance_config),
@@ -1171,6 +1306,7 @@ def run_all_tests() -> List[TestResult]:
         ("llm_validation", test_llm_validation),
         ("llm_parsing", test_llm_parsing),
         ("llm_fallback", test_llm_fallback),
+        ("llm_validation_fallback", test_llm_validation_fallback),
         ("full_config", test_full_config),
     ]
 
@@ -1229,6 +1365,7 @@ def main():
             "vad": test_vad_config,
             "itn": test_itn_functions,
             "decoding": test_decoding_config,
+            "nemo_api": test_nemo_api_compatibility,
             "segmentation": test_smart_segmentation,
             "merging": test_segment_merging,
             "performance": test_performance_config,
@@ -1243,6 +1380,7 @@ def main():
             "llm_validation": test_llm_validation,
             "llm_parsing": test_llm_parsing,
             "llm_fallback": test_llm_fallback,
+            "llm_validation_fallback": test_llm_validation_fallback,
             "full": test_full_config,
         }
 

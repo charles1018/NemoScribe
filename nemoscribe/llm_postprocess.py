@@ -321,6 +321,8 @@ def process_batch_with_agent_loop(
     Returns:
         List of (start, end, corrected_text) tuples
     """
+    original_segments = [(start, end, text) for _, start, end, text in indexed_batch]
+
     # Build initial prompt
     initial_prompt = build_correction_prompt(indexed_batch, config)
 
@@ -337,8 +339,6 @@ def process_batch_with_agent_loop(
             },
             {"role": "user", "content": initial_prompt}
         ]
-
-    last_result = None
 
     for step in range(config.max_retries):
         try:
@@ -395,9 +395,7 @@ def process_batch_with_agent_loop(
                 else:
                     # Final attempt failed, use original
                     logging.error("All parsing attempts failed, using original text")
-                    return [(start, end, text) for _, start, end, text in indexed_batch]
-
-            last_result = result_segments
+                    return original_segments
 
             # Validate result
             is_valid, error_message = validate_batch_result(
@@ -420,18 +418,17 @@ def process_batch_with_agent_loop(
                     messages.append({"role": "assistant", "content": response_text})
                     messages.append({"role": "user", "content": f"Validation failed:\n{error_message}"})
             else:
-                # Final attempt, use result even if not perfect
-                logging.warning("Max attempts reached, using last result despite validation issues")
-                return last_result if last_result else [(s, e, t) for _, s, e, t in indexed_batch]
+                logging.warning("Max attempts reached with validation issues, using original text for this batch")
+                return original_segments
 
         except Exception as e:
             logging.error(f"Agent loop iteration failed (attempt {step+1}/{config.max_retries}): {e}")
             if step == config.max_retries - 1:
                 # All attempts exhausted
-                return [(start, end, text) for _, start, end, text in indexed_batch]
+                return original_segments
 
     # Fallback (should not reach here)
-    return last_result if last_result else [(start, end, text) for _, start, end, text in indexed_batch]
+    return original_segments
 
 
 def postprocess_subtitles_anthropic(

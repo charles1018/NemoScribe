@@ -35,7 +35,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from nemo.collections.asr.models import ASRModel, EncDecClassificationModel
@@ -62,6 +62,38 @@ from nemoscribe.vad import create_audio_chunks_with_vad, run_vad_on_audio
 # =============================================================================
 # Decoding Strategy Configuration
 # =============================================================================
+
+
+def _decoding_config_fields(config_cls: type) -> set[str]:
+    """Return supported dataclass fields for NeMo decoding config classes."""
+    fields = getattr(config_cls, "__dataclass_fields__", None)
+    if fields:
+        return set(fields.keys())
+    return set()
+
+
+def _add_decoding_kwarg(
+    decoding_kwargs: Dict[str, Any],
+    config_cls: type,
+    value: Any,
+    *candidate_names: str,
+) -> None:
+    """
+    Add a decoding kwarg using the first field name supported by this NeMo version.
+
+    NeMo historically exposed misspelled fields such as segment_seperators.
+    Keep the local config spelling stable while accepting either upstream field.
+    """
+    fields = _decoding_config_fields(config_cls)
+    for name in candidate_names:
+        if not fields or name in fields:
+            decoding_kwargs[name] = value
+            return
+
+    logging.debug(
+        f"Skipping unsupported NeMo decoding option; none of {candidate_names} "
+        f"exist on {config_cls.__name__}"
+    )
 
 
 def setup_decoding_strategy(
@@ -102,23 +134,32 @@ def setup_decoding_strategy(
             from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
 
             # Build decoding config with all parameters
-            # Note: NeMo uses "segment_seperators" (typo) not "segment_separators"
-            decoding_kwargs = {
-                "fused_batch_size": cfg.rnnt_fused_batch_size,
-                "rnnt_timestamp_type": cfg.rnnt_timestamp_type,
-            }
+            decoding_kwargs: Dict[str, Any] = {}
+            _add_decoding_kwarg(decoding_kwargs, RNNTDecodingConfig, cfg.rnnt_fused_batch_size, "fused_batch_size")
+            _add_decoding_kwarg(decoding_kwargs, RNNTDecodingConfig, cfg.rnnt_timestamp_type, "rnnt_timestamp_type")
 
             # Set compute_timestamps if specified
             if cfg.compute_timestamps is not None:
-                decoding_kwargs["compute_timestamps"] = cfg.compute_timestamps
+                _add_decoding_kwarg(decoding_kwargs, RNNTDecodingConfig, cfg.compute_timestamps, "compute_timestamps")
 
             # Set segment separators for punctuation-based splitting
             if cfg.segment_separators:
-                decoding_kwargs["segment_seperators"] = cfg.segment_separators
+                _add_decoding_kwarg(
+                    decoding_kwargs,
+                    RNNTDecodingConfig,
+                    cfg.segment_separators,
+                    "segment_separators",
+                    "segment_seperators",
+                )
 
             # Set segment gap threshold for timing-based splitting
             if cfg.segment_gap_threshold is not None and not use_local_gap_segmentation:
-                decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
+                _add_decoding_kwarg(
+                    decoding_kwargs,
+                    RNNTDecodingConfig,
+                    cfg.segment_gap_threshold,
+                    "segment_gap_threshold",
+                )
 
             decoding_cfg = RNNTDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
@@ -139,20 +180,30 @@ def setup_decoding_strategy(
             from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
 
             # Build decoding config with all parameters
-            decoding_kwargs = {
-                "ctc_timestamp_type": cfg.ctc_timestamp_type,
-            }
+            decoding_kwargs: Dict[str, Any] = {}
+            _add_decoding_kwarg(decoding_kwargs, CTCDecodingConfig, cfg.ctc_timestamp_type, "ctc_timestamp_type")
 
             if cfg.compute_timestamps is not None:
-                decoding_kwargs["compute_timestamps"] = cfg.compute_timestamps
+                _add_decoding_kwarg(decoding_kwargs, CTCDecodingConfig, cfg.compute_timestamps, "compute_timestamps")
 
             # Set segment separators for punctuation-based splitting
             if cfg.segment_separators:
-                decoding_kwargs["segment_seperators"] = cfg.segment_separators
+                _add_decoding_kwarg(
+                    decoding_kwargs,
+                    CTCDecodingConfig,
+                    cfg.segment_separators,
+                    "segment_separators",
+                    "segment_seperators",
+                )
 
             # Set segment gap threshold for timing-based splitting
             if cfg.segment_gap_threshold is not None and not use_local_gap_segmentation:
-                decoding_kwargs["segment_gap_threshold"] = cfg.segment_gap_threshold
+                _add_decoding_kwarg(
+                    decoding_kwargs,
+                    CTCDecodingConfig,
+                    cfg.segment_gap_threshold,
+                    "segment_gap_threshold",
+                )
 
             decoding_cfg = CTCDecodingConfig(**decoding_kwargs)
             asr_model.change_decoding_strategy(decoding_cfg)
@@ -257,6 +308,46 @@ def revert_long_audio_settings(model: ASRModel) -> None:
 # =============================================================================
 
 
+def _is_unexpected_transcribe_kwarg_error(error: TypeError, keyword: str) -> bool:
+    message = str(error)
+    return keyword in message and (
+        "unexpected keyword" in message
+        or "got an unexpected" in message
+        or "got an invalid" in message
+    )
+
+
+def _transcribe_with_hypotheses(
+    asr_model: ASRModel,
+    audio_path: str,
+) -> Any:
+    """
+    Run NeMo transcribe while keeping timestamp behavior across minor API shifts.
+
+    NeMo 2.7.x accepts timestamps=True. If a later patch removes or renames that
+    keyword, retry with the decoding config's timestamp settings instead.
+    """
+    try:
+        return asr_model.transcribe(
+            [audio_path],
+            batch_size=1,
+            timestamps=True,
+            return_hypotheses=True,
+        )
+    except TypeError as e:
+        if not _is_unexpected_transcribe_kwarg_error(e, "timestamps"):
+            raise
+        logging.warning(
+            "NeMo model.transcribe() does not accept timestamps=True; "
+            "retrying with return_hypotheses=True only"
+        )
+        return asr_model.transcribe(
+            [audio_path],
+            batch_size=1,
+            return_hypotheses=True,
+        )
+
+
 def transcribe_audio_chunk(
     audio_path: str,
     asr_model: ASRModel,
@@ -279,12 +370,7 @@ def transcribe_audio_chunk(
     """
     with suppress_repetitive_nemo_logs(enabled=suppress_logs):
         with torch.inference_mode():
-            transcriptions = asr_model.transcribe(
-                [audio_path],
-                batch_size=1,
-                timestamps=True,
-                return_hypotheses=True,
-            )
+            transcriptions = _transcribe_with_hypotheses(asr_model, audio_path)
 
     # Handle different return formats
     if isinstance(transcriptions, tuple):

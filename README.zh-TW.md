@@ -81,6 +81,8 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
+目前 lockfile 會將 NeMo ASR 解到 `nemo-toolkit[asr]` 2.7.3，並使用 PyTorch 2.11 CUDA 13.0 wheels。版本約束仍維持在 NeMo 2.7.x 主線（`>=2.7.3,<2.8`），以保留 patch 版相容性。
+
 ### 4. 設定 CUDA（強烈建議）
 
 預設情況下，`uv sync` 可能會安裝僅支援 CPU 的 PyTorch。**強烈建議啟用 GPU 加速**以獲得合理的轉錄速度。本專案已預先設定使用 CUDA 13.0，GPU 使用者只需執行 `uv sync` 即可。
@@ -324,6 +326,8 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `ctc_timestamp_type` | "all" | CTC 時間戳記類型 |
 | `segment_separators` | `[".", "?", "!"]` | 在標點符號處分割片段 |
 | `segment_gap_threshold` | None | 正整數（單位：幀）；當詞間隔過大時分割片段，且可與 `segment_separators` 同時使用 |
+
+內部會把 NemoScribe 的 `segment_separators` 對應到目前 NeMo decoding config 支援的欄位名稱，包含新版正拼字 `segment_separators` 與歷史拼字 `segment_seperators`。
 
 ### 後處理 (`postprocessing.*`)
 

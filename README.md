@@ -81,6 +81,8 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
+The lockfile currently resolves NeMo ASR to `nemo-toolkit[asr]` 2.7.3 with PyTorch 2.11 CUDA 13.0 wheels. The version constraints stay on the NeMo 2.7.x line (`>=2.7.3,<2.8`) for patch-level compatibility.
+
 ### 4. Configure CUDA (Strongly Recommended)
 
 By default, `uv sync` may install CPU-only PyTorch. **GPU acceleration is strongly recommended** for reasonable transcription speed. The project is pre-configured to use CUDA 13.0, so GPU users only need to run `uv sync`.
@@ -324,6 +326,8 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `ctc_timestamp_type` | "all" | CTC timestamp type |
 | `segment_separators` | `[".", "?", "!"]` | Split segments at punctuation marks |
 | `segment_gap_threshold` | None | Positive integer in frames; splits on large inter-word gaps and remains compatible with `segment_separators` |
+
+Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding config field is available (`segment_separators` or the historical `segment_seperators` spelling).
 
 ### Post-processing (`postprocessing.*`)
 

@@ -27,9 +27,35 @@ This module handles SRT file generation and timestamp formatting.
 """
 
 from datetime import timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from nemo.collections.asr.parts.utils.rnnt_utils import Hypothesis
+
+
+def _timestamp_entry_get(entry: Any, key: str, default: Any = None) -> Any:
+    """Read timestamp fields from dict-like or object-like NeMo entries."""
+    if isinstance(entry, dict):
+        return entry.get(key, default)
+    return getattr(entry, key, default)
+
+
+def _get_hypothesis_timestamps(hypothesis: Hypothesis) -> Dict[str, Any]:
+    """
+    Return timestamp data as a dict across NeMo Hypothesis variants.
+
+    Older code and some models expose timestep, while NeMo 2.7.x Hypothesis uses
+    timestamp. The default timestamp value can be a list, so guard dict access.
+    """
+    for attr_name in ("timestep", "timestamp"):
+        timestamps = getattr(hypothesis, attr_name, None)
+        if isinstance(timestamps, dict):
+            return timestamps
+        if hasattr(timestamps, "items"):
+            try:
+                return dict(timestamps.items())
+            except Exception:
+                continue
+    return {}
 
 
 def validate_segment_gap_threshold(segment_gap_threshold_frames: Optional[int]) -> None:
@@ -81,8 +107,8 @@ def _word_gap_exceeds_threshold(
     if segment_gap_threshold_frames is None:
         return False
 
-    previous_end_offset = previous_word.get("end_offset")
-    current_start_offset = current_word.get("start_offset")
+    previous_end_offset = _timestamp_entry_get(previous_word, "end_offset")
+    current_start_offset = _timestamp_entry_get(current_word, "start_offset")
     if previous_end_offset is None or current_start_offset is None:
         return False
 
@@ -123,12 +149,14 @@ def _segments_from_word_timestamps(
         current_end = None
 
     for word_info in words_data:
-        word = word_info.get("word", word_info.get("text", "")).strip()
+        word = _timestamp_entry_get(word_info, "word", _timestamp_entry_get(word_info, "text", "")).strip()
         if not word:
             continue
 
-        start = word_info["start"]
-        end = word_info["end"]
+        start = _timestamp_entry_get(word_info, "start")
+        end = _timestamp_entry_get(word_info, "end")
+        if start is None or end is None:
+            continue
 
         should_split_before_word = False
         if current_words and previous_word_info is not None and current_end is not None:
@@ -232,7 +260,7 @@ def hypothesis_to_srt_segments(
     segments = []
 
     # Get timestamp data from hypothesis
-    timestamps = getattr(hypothesis, "timestep", None) or getattr(hypothesis, "timestamp", None) or {}
+    timestamps = _get_hypothesis_timestamps(hypothesis)
 
     # Check if segments are too coarse (e.g., models without punctuation produce one segment per chunk)
     # In that case, prefer word-level timestamps for finer granularity
@@ -240,7 +268,10 @@ def hypothesis_to_srt_segments(
     if "segment" in timestamps and "word" in timestamps:
         seg_list = timestamps["segment"]
         if seg_list:
-            avg_seg_duration = sum(s["end"] - s["start"] for s in seg_list) / len(seg_list)
+            avg_seg_duration = sum(
+                _timestamp_entry_get(s, "end") - _timestamp_entry_get(s, "start")
+                for s in seg_list
+            ) / len(seg_list)
             # If average segment is too long, use word-level instead
             if avg_seg_duration > max_segment_duration * 2:
                 use_word_level = True
@@ -254,10 +285,12 @@ def hypothesis_to_srt_segments(
     # Strategy 1: Use segment-level timestamps if available and not too coarse
     if "segment" in timestamps and not use_word_level:
         for seg in timestamps["segment"]:
-            text = seg.get("segment", seg.get("text", "")).strip()
+            text = _timestamp_entry_get(seg, "segment", _timestamp_entry_get(seg, "text", "")).strip()
             if text:
-                start = seg["start"]
-                end = seg["end"]
+                start = _timestamp_entry_get(seg, "start")
+                end = _timestamp_entry_get(seg, "end")
+                if start is None or end is None:
+                    continue
                 segments.append((start, end, text))
         return segments
 
