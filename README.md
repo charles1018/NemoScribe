@@ -480,7 +480,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# Available tests: baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, full
+# Available tests: baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, full
 ```
 
 ### Test Coverage
@@ -489,9 +489,11 @@ uv run python tests/test_improvements.py --test metrics
 - **vad_config**: VAD configuration correctness
 - **itn_functions**: ITN normalization functionality
 - **decoding_config**: Decoding configuration (CUDA graphs)
+- **nemo_api_compatibility**: NeMo decoding config alias compatibility
 - **smart_segmentation**: Smart segmentation logic
 - **segment_merging**: Overlapping segment merging
 - **performance_config**: Performance configuration
+- **ab_test_config**: VAD A/B test configuration and output path helpers
 - **quality_metrics**: WER/CER calculation
 - **srt_formatting**: SRT formatting
 - **srt_edge_cases**: SRT edge case handling (empty segments, special characters)
@@ -502,6 +504,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_validation**: Batch result similarity validation
 - **llm_parsing**: JSON response parsing and prompt building
 - **llm_fallback**: Graceful fallback when disabled or no API key
+- **llm_validation_fallback**: Invalid LLM corrections fall back to the original batch
 - **full_config**: Complete configuration combination
 
 ## Quality Metrics

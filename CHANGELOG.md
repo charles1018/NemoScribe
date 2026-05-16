@@ -119,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 
 - 100% CLI backward compatible - all existing commands work unchanged
-- All 10 unit tests pass
+- Integration test coverage added for the initial modular release
 
 ## [0.1.0] - 2025-12-13
 

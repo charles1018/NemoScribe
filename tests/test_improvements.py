@@ -1392,9 +1392,10 @@ def main():
     parser.add_argument(
         "--test",
         type=str,
-        help="Run specific test (baseline, vad, itn, decoding, segmentation, "
-        "merging, performance, metrics, srt, llm, llm_cli, llm_validation, "
-        "llm_parsing, llm_fallback, full, all)",
+        help="Run specific test (baseline, vad, itn, decoding, nemo_api, "
+        "segmentation, merging, performance, ab_test, metrics, srt, "
+        "srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, "
+        "llm_parsing, llm_fallback, llm_validation_fallback, full, all)",
         default="all",
     )
     parser.add_argument(

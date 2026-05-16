@@ -480,7 +480,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# 可用測試：baseline, vad, itn, decoding, segmentation, merging, performance, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, full
+# 可用測試：baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, full
 ```
 
 ### 測試涵蓋範圍
@@ -489,9 +489,11 @@ uv run python tests/test_improvements.py --test metrics
 - **vad_config**：VAD 設定正確性
 - **itn_functions**：ITN 正規化功能
 - **decoding_config**：解碼設定（CUDA graphs）
+- **nemo_api_compatibility**：NeMo 解碼設定別名相容性
 - **smart_segmentation**：智慧分段邏輯
 - **segment_merging**：重疊片段合併
 - **performance_config**：效能設定
+- **ab_test_config**：VAD A/B 測試設定與輸出路徑輔助函式
 - **quality_metrics**：WER/CER 計算
 - **srt_formatting**：SRT 格式化
 - **srt_edge_cases**：SRT 邊界情況處理（空片段、特殊字元）
@@ -502,6 +504,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_validation**：批次結果相似度驗證
 - **llm_parsing**：JSON 回應解析與 prompt 建構
 - **llm_fallback**：停用或無 API 金鑰時的優雅降級
+- **llm_validation_fallback**：無效的 LLM 修正會回退到原始批次內容
 - **full_config**：完整設定組合
 
 ## 品質指標
