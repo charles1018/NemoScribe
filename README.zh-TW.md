@@ -421,9 +421,11 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 | GPU VRAM | `max_chunk_duration` |
 |----------|---------------------|
-| 8GB | 300（預設）|
+| 8GB | 120–300（預設 300）|
 | 16GB | 600 |
 | 24GB+ | 0（不分段）|
+
+> **注意**：8GB GPU 搭配 `compute_dtype=float32` 時，對話密集的內容可能在預設 300 秒下發生 OOM——智慧分段可能產生較長的連續語音 chunk（已在 RTX 3070 8GB 上以 Yellowstone S03E01 實測確認）。若遇到 `CUDA out of memory`，請設定 `audio.max_chunk_duration=120`。
 
 ## 時間戳記優先順序
 

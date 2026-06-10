@@ -421,9 +421,11 @@ The script uses **audio chunking** to handle videos of any length:
 
 | GPU VRAM | `max_chunk_duration` |
 |----------|---------------------|
-| 8GB | 300 (default) |
+| 8GB | 120–300 (default 300) |
 | 16GB | 600 |
 | 24GB+ | 0 (no chunking) |
+
+> **Note**: On 8GB GPUs with `compute_dtype=float32`, dialogue-dense content can OOM at the default 300s because smart segmentation may produce longer continuous-speech chunks (verified on Yellowstone S03E01 with an RTX 3070 8GB). If you hit `CUDA out of memory`, set `audio.max_chunk_duration=120`.
 
 ## Timestamp Priority
 

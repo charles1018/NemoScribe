@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documented a known model limitation of `parakeet-tdt-0.6b-v2`: repeated words and false starts (disfluencies) may be dropped; use `parakeet-tdt-1.1b` when verbatim disfluencies matter
 - Mentioned the free hosted API on build.nvidia.com as a no-GPU way to try the default model
+- GPU memory table: 8GB GPUs with `compute_dtype=float32` may OOM at the default `max_chunk_duration=300` on dialogue-dense content; recommend dropping to 120 (verified on Yellowstone S03E01, RTX 3070 8GB)
 
 ## [0.5.0] - 2026-06-11
 
