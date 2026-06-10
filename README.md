@@ -404,6 +404,10 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 
 > **Note**: `parakeet-tdt-1.1b` produces lowercase output without punctuation. The script automatically uses word-level timestamps to generate fine-grained subtitles.
 
+> **Known model limitation**: `parakeet-tdt-0.6b-v2` may drop repeated words and false starts (disfluencies) — a known regression vs the 1.1b model ([discussion #8](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2/discussions/8)). If verbatim disfluencies matter (e.g. stuttered or repeated lines), consider `parakeet-tdt-1.1b`.
+
+> **Tip**: You can try the default model without a GPU via the free hosted API on [build.nvidia.com](https://build.nvidia.com/nvidia/parakeet-tdt-0_6b-v2).
+
 ## Long Audio Support
 
 The script uses **audio chunking** to handle videos of any length:

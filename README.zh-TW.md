@@ -404,6 +404,10 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 > **注意**：`parakeet-tdt-1.1b` 產生的輸出為無標點的小寫文字。程式會自動使用字詞級時間戳記來產生細緻的字幕。
 
+> **模型已知限制**：`parakeet-tdt-0.6b-v2` 可能會漏掉重複的字詞與 false starts（口吃、不流暢語）——這是相較 1.1b 模型的已知退化（[官方討論 #8](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2/discussions/8)）。若需要逐字保留結巴或重複的台詞，請考慮改用 `parakeet-tdt-1.1b`。
+
+> **提示**：不需 GPU 也可以透過 [build.nvidia.com](https://build.nvidia.com/nvidia/parakeet-tdt-0_6b-v2) 的免費 hosted API 試用預設模型。
+
 ## 長音訊支援
 
 程式使用**音訊分段**來處理任意長度的影片：
