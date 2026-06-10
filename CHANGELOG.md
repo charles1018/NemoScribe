@@ -7,15 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-11
+
+### Added
+
+- **VAD A/B comparison mode**: `ab_test.vad=true` generates both VAD and no-VAD outputs (`video.vad.srt` / `video.no_vad.srt`) in a single run, sharing the same ASR settings
+- `decoding.segment_gap_threshold`: timing-based segment splitting that complements punctuation-based `segment_separators` (exposes NeMo's `RNNTDecodingConfig`/`CTCDecodingConfig` field)
+
+### Changed
+
+- Upgraded NeMo toolkit to `>=2.7.3,<2.8` and pinned core runtime dependencies (`torch>=2.11,<2.12`, tightened optional dependency ranges for `itn`, `benchmark`, and `llm` extras)
+- Decoding options are now applied version-adaptively: unsupported NeMo decoding config fields are skipped with a debug log, and both `segment_separators` and the legacy `segment_seperators` spellings are accepted upstream
+- Upgraded optional LLM dependencies in the lockfile (anthropic, openai, json-repair)
+
 ### Fixed
 
+- LLM post-processing now preserves subtitle segment order in its output
 - `decoding.segment_gap_threshold` now validates as a positive integer instead of silently accepting `0` or negative values
 - Subtitle segmentation now preserves punctuation-based `segment_separators` when `segment_gap_threshold` is also enabled
 
 ### Documentation
 
+- Added `UPGRADE_NEMO.md`: runbook for upgrading the NeMo dependency stack (version policy, lockfile re-resolution, validation steps)
+- Clarified VAD tuning guidance in `TUNING_GUIDE.md`, including when to prefer no-VAD output on clean drama/movie audio
 - Clarified that `segment_gap_threshold` is frame-based, must be positive, and can be combined with punctuation splitting
 - Documented the Chicago Fire drama validation profile: `compute_dtype=float32`, `decoding.rnnt_fused_batch_size=0`, and `decoding.segment_gap_threshold=20`
+- Synced test inventory and coverage notes in README
 
 ## [0.4.0] - 2026-03-26
 
