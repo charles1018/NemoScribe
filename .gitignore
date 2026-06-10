@@ -53,6 +53,9 @@ Thumbs.db
 *.bak
 *.log
 
+# Benchmark artifacts
+evaluation_report.txt
+
 # Model cache (large files)
 *.nemo
 *.ckpt
