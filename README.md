@@ -1,33 +1,63 @@
-# NemoScribe
+<div align="center">
+
+# 🎬 NemoScribe
+
+### AI Subtitle Generator — Convert Video to SRT with NVIDIA NeMo Speech-to-Text
+
+**Fast, local, GPU-accelerated automatic transcription with word-level timestamps.**<br>
+**A free, offline alternative to cloud captioning services.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CUDA](https://img.shields.io/badge/CUDA-13.0-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NVIDIA%20NeMo-76b900.svg)](https://github.com/NVIDIA/NeMo)
+[![Model](https://img.shields.io/badge/model-Parakeet--TDT-orange.svg)](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)
 [![GitHub stars](https://img.shields.io/github/stars/charles1018/NemoScribe?style=social)](https://github.com/charles1018/NemoScribe)
 
 **English** | [繁體中文](README.zh-TW.md)
 
-Convert video files to SRT subtitles using NVIDIA NeMo ASR models with accurate word-level timestamps. Supports up to 3 hours of audio through chunked inference.
+[Quick Start](#-quick-start) • [Installation](#-installation) • [Configuration](#-configuration-reference) • [Models](#-recommended-models) • [Tuning Guide](docs/TUNING_GUIDE.md)
 
-Built on [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) framework with [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) as the default model.
+</div>
 
-## Table of Contents
+---
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage Examples](#usage-examples)
-- [Configuration Reference](#configuration-reference)
-- [Recommended Models](#recommended-models)
-- [Long Audio Support](#long-audio-support)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
-- [References](#references)
+**NemoScribe** is a command-line **speech-to-text subtitle generator** that converts video files (MP4, MKV, AVI, MOV, WebM) into accurately timed **SRT subtitles** — entirely on your own machine. Built on the [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) ASR framework with [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) as the default model, it delivers state-of-the-art English **automatic speech recognition (ASR)** with word-level timestamps, and handles long audio (up to 3 hours) through chunked inference.
 
-## Features
+```
+video.mp4 ─► FFmpeg ─► VAD speech detection ─► NeMo ASR (Parakeet-TDT) ─► ITN / LLM correction ─► video.srt
+```
+
+## 💡 Why NemoScribe?
+
+| | |
+|---|---|
+| 🏆 **State-of-the-art accuracy** | Parakeet-TDT-0.6B-v2 is a top-ranked English model on the [HuggingFace Open ASR Leaderboard](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard), ahead of much larger models including Whisper-large-v3 |
+| ⚡ **Blazing fast** | Up to ~240× realtime on a consumer GPU — transcribe a full TV episode in well under a minute |
+| 🔒 **100% local & private** | Your audio never leaves your machine. No cloud upload, no subscription, no per-minute fees |
+| 🎯 **Accurate timestamps** | Word-level and segment-level timestamps straight from the model — no forced alignment hacks |
+| 🎭 **Tuned for real content** | VAD presets and punctuation-based segmentation optimized for movies, TV drama, and dialogue-dense audio |
+| 🤖 **Optional AI cleanup** | LLM post-processing (OpenAI / Anthropic) fixes character names, proper nouns, and homophones |
+
+**Use cases**: subtitling movies and TV shows, transcribing lectures and tutorials, captioning YouTube videos, interview and podcast transcription, accessibility captions (SDH/CC).
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Usage Examples](#-usage-examples)
+- [Configuration Reference](#-configuration-reference)
+- [Recommended Models](#-recommended-models)
+- [Long Audio Support](#-long-audio-support)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+- [References](#-references)
+
+## ✨ Features
 
 - **Accurate Timestamps**: Word-level and segment-level timestamps from NeMo ASR models
 - **Long Audio Support**: Process videos up to 3 hours with automatic chunking
@@ -38,7 +68,7 @@ Built on [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) framework with [Parakeet-
 - **CUDA Optimized**: CUDA graphs enabled by default for faster inference
 - **Batch Processing**: Process entire directories of videos
 
-## Requirements
+## 📋 Requirements
 
 | Requirement | Details |
 |-------------|---------|
@@ -54,7 +84,7 @@ Built on [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) framework with [Parakeet-
 - **Windows**: Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/), extract, add `bin` folder to PATH
 - **Linux**: `sudo apt install ffmpeg`
 
-## Installation
+## 📦 Installation
 
 ### 1. Install uv
 
@@ -146,7 +176,7 @@ uv run python scripts/check_cuda.py
 # Expected output: CUDA available: True
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Basic usage
@@ -164,7 +194,7 @@ uv run nemoscribe video_dir=/path/to/videos/ output_dir=/path/to/subtitles/
 
 > **📖 Advanced Tuning:** For optimal parameter configurations for different scenarios (drama, news, technical tutorials), see [TUNING_GUIDE.md](docs/TUNING_GUIDE.md).
 
-## Usage Examples
+## 🎯 Usage Examples
 
 ### Subtitle Formatting
 
@@ -284,7 +314,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 # Example output: RTFx=15.2x realtime (transcribed 600s in 39.5s)
 ```
 
-## Configuration Reference
+## 🔧 Configuration Reference
 
 ### Main Options
 
@@ -384,7 +414,7 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 | `verbose` | false | Show all NeMo internal logs (useful for debugging) |
 | `suppress_repetitive_logs` | true | Suppress repetitive NeMo logs during chunk processing |
 
-## Recommended Models
+## 🤖 Recommended Models
 
 | Model | Speed | Accuracy | Features |
 |-------|-------|----------|----------|
@@ -408,7 +438,7 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 
 > **Tip**: You can try the default model without a GPU via the free hosted API on [build.nvidia.com](https://build.nvidia.com/nvidia/parakeet-tdt-0_6b-v2).
 
-## Long Audio Support
+## 🎵 Long Audio Support
 
 The script uses **audio chunking** to handle videos of any length:
 
@@ -427,7 +457,7 @@ The script uses **audio chunking** to handle videos of any length:
 
 > **Note**: On 8GB GPUs with `compute_dtype=float32`, dialogue-dense content can OOM at the default 300s because smart segmentation may produce longer continuous-speech chunks (verified on Yellowstone S03E01 with an RTX 3070 8GB). If you hit `CUDA out of memory`, set `audio.max_chunk_duration=120`.
 
-## Timestamp Priority
+## 🕐 Timestamp Priority
 
 The script obtains timestamps in this priority order:
 
@@ -437,7 +467,7 @@ The script obtains timestamps in this priority order:
 
 > **Auto Fallback**: If average segment length exceeds `max_segment_duration * 2` (e.g., models without punctuation), the script automatically switches to word-level timestamps.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 nemoscribe/
@@ -454,11 +484,11 @@ nemoscribe/
 └── log_utils.py       # Log filtering
 ```
 
-## Supported Video Formats
+## 📹 Supported Video Formats
 
 `.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, `.m4v`
 
-## Example Output
+## 📝 Example Output
 
 ```srt
 1
@@ -474,7 +504,7 @@ We have an exciting episode planned for you.
 Let's get started with our first topic.
 ```
 
-## Testing
+## 🧪 Testing
 
 ```bash
 # Run all tests
@@ -513,7 +543,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_validation_fallback**: Invalid LLM corrections fall back to the original batch
 - **full_config**: Complete configuration combination
 
-## Quality Metrics
+## 📊 Quality Metrics
 
 Calculate transcription quality using NeMo's official tools:
 
@@ -530,7 +560,7 @@ print(f"CER: {result['cer']:.2%}")
 
 Output includes: `wer`, `cer`, `insertion_rate`, `deletion_rate`, `substitution_rate`
 
-## Troubleshooting
+## 🆘 Troubleshooting
 
 ### CUDA Out of Memory
 
@@ -556,7 +586,21 @@ Models are automatically downloaded from HuggingFace/NGC on first use. For slow 
 export HF_ENDPOINT=https://hf-mirror.com
 ```
 
-## Contributing
+## ❓ FAQ
+
+**How is NemoScribe different from OpenAI Whisper?**
+NemoScribe uses NVIDIA NeMo's Parakeet-TDT models, which rank above Whisper-large-v3 in English word error rate on the HuggingFace Open ASR Leaderboard while being far smaller and faster (up to ~240× realtime on GPU). Whisper supports more languages out of the box; for English video subtitling, Parakeet-TDT typically gives better accuracy per second of compute, plus native word-level timestamps.
+
+**Does it work offline?**
+Yes. After the first model download, transcription runs fully offline on your machine. Only the optional LLM post-processing step requires an internet connection.
+
+**Can it generate subtitles for languages other than English?**
+Yes — switch to `nvidia/parakeet-tdt-0.6b-v3` (25 languages with auto-detection) or `nvidia/canary-1b-v2` (transcription + translation) via `pretrained_name=...`.
+
+**Do I need a GPU?**
+A CUDA-capable NVIDIA GPU is strongly recommended (8GB VRAM is enough). CPU mode works (`cuda=-1`) but is much slower.
+
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -568,11 +612,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 For bug reports and feature requests, please [open an issue](https://github.com/charles1018/NemoScribe/issues).
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 NemoScribe is built upon the following open-source projects:
 
@@ -581,7 +625,7 @@ NemoScribe is built upon the following open-source projects:
 
 We thank NVIDIA for making these excellent tools and models available to the community.
 
-## References
+## 📚 References
 
 ### Model Resources
 
@@ -623,3 +667,13 @@ model.change_subsampling_conv_chunking_factor(1)  # 1 = auto select
 - [NeMo ASR Documentation](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/intro.html)
 - [NeMo GitHub Repository](https://github.com/NVIDIA/NeMo)
 - [Parakeet Model Card](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/parakeet-tdt-0.6b-v2)
+
+---
+
+<div align="center">
+
+**If NemoScribe saves you time, consider giving it a ⭐ — it helps others find the project!**
+
+*NemoScribe — automatic subtitle generation, video transcription, and speech-to-text for everyone.*
+
+</div>

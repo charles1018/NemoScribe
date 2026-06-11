@@ -1,33 +1,63 @@
-# NemoScribe
+<div align="center">
+
+# 🎬 NemoScribe
+
+### AI 字幕產生器 — 使用 NVIDIA NeMo 語音辨識將影片轉換為 SRT 字幕
+
+**快速、本機執行、GPU 加速的自動語音轉文字，支援字詞級時間戳記。**<br>
+**免費、離線，無需仰賴雲端字幕服務。**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CUDA](https://img.shields.io/badge/CUDA-13.0-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NVIDIA%20NeMo-76b900.svg)](https://github.com/NVIDIA/NeMo)
+[![Model](https://img.shields.io/badge/model-Parakeet--TDT-orange.svg)](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)
 [![GitHub stars](https://img.shields.io/github/stars/charles1018/NemoScribe?style=social)](https://github.com/charles1018/NemoScribe)
 
 [English](README.md) | **繁體中文**
 
-使用 NVIDIA NeMo ASR 模型將影片檔案轉換為 SRT 字幕，支援精確的字詞級時間戳記。透過分段推論可處理長達 3 小時的音訊。
+[快速開始](#-快速開始) • [安裝步驟](#-安裝步驟) • [設定參考](#-設定參考) • [建議模型](#-建議模型) • [調校指南](docs/TUNING_GUIDE.zh-TW.md)
 
-基於 [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) 框架建構，預設使用 [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) 模型。
+</div>
 
-## 目錄
+---
 
-- [功能特色](#功能特色)
-- [系統需求](#系統需求)
-- [安裝步驟](#安裝步驟)
-- [快速開始](#快速開始)
-- [使用範例](#使用範例)
-- [設定參考](#設定參考)
-- [建議模型](#建議模型)
-- [長音訊支援](#長音訊支援)
-- [疑難排解](#疑難排解)
-- [貢獻指南](#貢獻指南)
-- [授權條款](#授權條款)
-- [致謝](#致謝)
-- [參考資源](#參考資源)
+**NemoScribe** 是一個命令列**語音轉文字字幕產生器**，能將影片檔案（MP4、MKV、AVI、MOV、WebM）轉換為時間精確的 **SRT 字幕**——完全在你自己的機器上執行。基於 [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) ASR 框架建構，預設使用 [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) 模型，提供最先進的英文**自動語音辨識（ASR）**與字詞級時間戳記，並透過分段推論支援長達 3 小時的音訊。
 
-## 功能特色
+```
+video.mp4 ─► FFmpeg ─► VAD 語音偵測 ─► NeMo ASR (Parakeet-TDT) ─► ITN / LLM 修正 ─► video.srt
+```
+
+## 💡 為什麼選擇 NemoScribe？
+
+| | |
+|---|---|
+| 🏆 **頂尖準確度** | Parakeet-TDT-0.6B-v2 在 [HuggingFace Open ASR Leaderboard](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard) 上是排名領先的英文模型，超越包括 Whisper-large-v3 在內的更大型模型 |
+| ⚡ **極速轉錄** | 消費級 GPU 上可達約 240 倍即時速度——一整集影集不到一分鐘即可完成轉錄 |
+| 🔒 **100% 本機且隱私** | 音訊永遠不會離開你的機器。無雲端上傳、無訂閱費、無按分鐘計費 |
+| 🎯 **精確時間戳記** | 直接從模型取得字詞級與片段級時間戳記——不需強制對齊（forced alignment）等額外手段 |
+| 🎭 **針對實際內容調校** | VAD 預設值與標點分段針對電影、影集與對話密集的音訊最佳化 |
+| 🤖 **選用 AI 修正** | LLM 後處理（OpenAI / Anthropic）修正人名、專有名詞與同音異字 |
+
+**適用情境**：電影與影集字幕、課程與教學影片逐字稿、YouTube 影片字幕、訪談與 Podcast 轉錄、無障礙字幕（SDH/CC）。
+
+## 📑 目錄
+
+- [功能特色](#-功能特色)
+- [系統需求](#-系統需求)
+- [安裝步驟](#-安裝步驟)
+- [快速開始](#-快速開始)
+- [使用範例](#-使用範例)
+- [設定參考](#-設定參考)
+- [建議模型](#-建議模型)
+- [長音訊支援](#-長音訊支援)
+- [疑難排解](#-疑難排解)
+- [貢獻指南](#-貢獻指南)
+- [授權條款](#-授權條款)
+- [致謝](#-致謝)
+- [參考資源](#-參考資源)
+
+## ✨ 功能特色
 
 - **精確時間戳記**：從 NeMo ASR 模型取得字詞級與片段級時間戳記
 - **長音訊支援**：透過自動分段處理長達 3 小時的影片
@@ -38,7 +68,7 @@
 - **CUDA 最佳化**：預設啟用 CUDA graphs 以加速推論
 - **批次處理**：處理整個目錄的影片檔案
 
-## 系統需求
+## 📋 系統需求
 
 | 需求 | 說明 |
 |------|------|
@@ -54,7 +84,7 @@
 - **Windows**：從 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) 下載，解壓縮後將 `bin` 資料夾加入 PATH
 - **Linux**：`sudo apt install ffmpeg`
 
-## 安裝步驟
+## 📦 安裝步驟
 
 ### 1. 安裝 uv
 
@@ -146,7 +176,7 @@ uv run python scripts/check_cuda.py
 # 預期輸出：CUDA available: True
 ```
 
-## 快速開始
+## 🚀 快速開始
 
 ```bash
 # 基本用法
@@ -162,9 +192,9 @@ uv run nemoscribe video_path="video.mp4" ab_test.vad=true
 uv run nemoscribe video_dir=/path/to/videos/ output_dir=/path/to/subtitles/
 ```
 
-> **📖 進階調校：** 針對不同場景（戲劇、新聞、技術教學）的最佳參數設定，請參考 [TUNING_GUIDE.md](docs/TUNING_GUIDE.md)。
+> **📖 進階調校：** 針對不同場景（戲劇、新聞、技術教學）的最佳參數設定，請參考 [TUNING_GUIDE.zh-TW.md](docs/TUNING_GUIDE.zh-TW.md)。
 
-## 使用範例
+## 🎯 使用範例
 
 ### 字幕格式設定
 
@@ -284,7 +314,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 # 範例輸出：RTFx=15.2x realtime (transcribed 600s in 39.5s)
 ```
 
-## 設定參考
+## 🔧 設定參考
 
 ### 主要選項
 
@@ -384,7 +414,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | `verbose` | false | 顯示所有 NeMo 內部日誌（除錯用）|
 | `suppress_repetitive_logs` | true | 在分段處理期間抑制重複的 NeMo 日誌 |
 
-## 建議模型
+## 🤖 建議模型
 
 | 模型 | 速度 | 準確度 | 特色 |
 |------|------|--------|------|
@@ -408,7 +438,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 > **提示**：不需 GPU 也可以透過 [build.nvidia.com](https://build.nvidia.com/nvidia/parakeet-tdt-0_6b-v2) 的免費 hosted API 試用預設模型。
 
-## 長音訊支援
+## 🎵 長音訊支援
 
 程式使用**音訊分段**來處理任意長度的影片：
 
@@ -427,7 +457,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 > **注意**：8GB GPU 搭配 `compute_dtype=float32` 時，對話密集的內容可能在預設 300 秒下發生 OOM——智慧分段可能產生較長的連續語音 chunk（已在 RTX 3070 8GB 上以 Yellowstone S03E01 實測確認）。若遇到 `CUDA out of memory`，請設定 `audio.max_chunk_duration=120`。
 
-## 時間戳記優先順序
+## 🕐 時間戳記優先順序
 
 程式按以下優先順序取得時間戳記：
 
@@ -437,7 +467,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 > **自動備援**：若平均片段長度超過 `max_segment_duration * 2`（例如無標點的模型），程式會自動切換至字詞級時間戳記。
 
-## 專案結構
+## 📁 專案結構
 
 ```
 nemoscribe/
@@ -454,11 +484,11 @@ nemoscribe/
 └── log_utils.py       # 日誌過濾
 ```
 
-## 支援的影片格式
+## 📹 支援的影片格式
 
 `.mp4`、`.mkv`、`.avi`、`.mov`、`.webm`、`.m4v`
 
-## 輸出範例
+## 📝 輸出範例
 
 ```srt
 1
@@ -474,7 +504,7 @@ We have an exciting episode planned for you.
 Let's get started with our first topic.
 ```
 
-## 測試
+## 🧪 測試
 
 ```bash
 # 執行所有測試
@@ -513,7 +543,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_validation_fallback**：無效的 LLM 修正會回退到原始批次內容
 - **full_config**：完整設定組合
 
-## 品質指標
+## 📊 品質指標
 
 使用 NeMo 官方工具計算轉錄品質：
 
@@ -530,7 +560,7 @@ print(f"CER: {result['cer']:.2%}")
 
 輸出包含：`wer`、`cer`、`insertion_rate`、`deletion_rate`、`substitution_rate`
 
-## 疑難排解
+## 🆘 疑難排解
 
 ### CUDA 記憶體不足
 
@@ -556,7 +586,21 @@ uv run nemoscribe video_path=video.mp4 \
 export HF_ENDPOINT=https://hf-mirror.com
 ```
 
-## 貢獻指南
+## ❓ 常見問題
+
+**NemoScribe 和 OpenAI Whisper 有什麼不同？**
+NemoScribe 使用 NVIDIA NeMo 的 Parakeet-TDT 模型，在 HuggingFace Open ASR Leaderboard 的英文詞錯誤率（WER）排名上優於 Whisper-large-v3，模型更小、速度更快（GPU 上可達約 240 倍即時速度）。Whisper 開箱即用支援較多語言；但若是英文影片字幕，Parakeet-TDT 通常能以更少的運算時間得到更好的準確度，並原生支援字詞級時間戳記。
+
+**可以離線使用嗎？**
+可以。模型首次下載完成後，轉錄完全在本機離線執行。只有選用的 LLM 後處理步驟需要網路連線。
+
+**可以產生英文以外的字幕嗎？**
+可以——透過 `pretrained_name=...` 切換至 `nvidia/parakeet-tdt-0.6b-v3`（25 種語言，自動偵測）或 `nvidia/canary-1b-v2`（轉錄 + 翻譯）。
+
+**一定要有 GPU 嗎？**
+強烈建議使用支援 CUDA 的 NVIDIA GPU（8GB VRAM 即足夠）。CPU 模式（`cuda=-1`）可以運作，但速度慢很多。
+
+## 🤝 貢獻指南
 
 歡迎貢獻！請隨時提交 Pull Request。
 
@@ -568,11 +612,11 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 如需回報問題或提出功能建議，請[開啟 Issue](https://github.com/charles1018/NemoScribe/issues)。
 
-## 授權條款
+## 📄 授權條款
 
 本專案採用 MIT 授權條款 - 詳見 [LICENSE](LICENSE) 檔案。
 
-## 致謝
+## 🙏 致謝
 
 NemoScribe 建構於以下開源專案之上：
 
@@ -581,7 +625,7 @@ NemoScribe 建構於以下開源專案之上：
 
 感謝 NVIDIA 將這些優秀的工具和模型提供給社群。
 
-## 參考資源
+## 📚 參考資源
 
 ### 模型資源
 
@@ -623,3 +667,13 @@ model.change_subsampling_conv_chunking_factor(1)  # 1 = 自動選擇
 - [NeMo ASR 文件](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/intro.html)
 - [NeMo GitHub 儲存庫](https://github.com/NVIDIA/NeMo)
 - [Parakeet 模型卡](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/parakeet-tdt-0.6b-v2)
+
+---
+
+<div align="center">
+
+**如果 NemoScribe 為你節省了時間，請給個 ⭐ —— 這能幫助更多人找到這個專案！**
+
+*NemoScribe — 為每個人打造的自動字幕產生、影片轉錄與語音轉文字工具。*
+
+</div>

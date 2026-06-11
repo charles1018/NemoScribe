@@ -1,95 +1,97 @@
-# parakeet-tdt-0.6b-v2 模型最佳化參數指南 (Parakeet-TDT)
+# parakeet-tdt-0.6b-v2 Parameter Tuning Guide (Parakeet-TDT)
 
-這份指南旨在幫助使用者透過調整 **NVIDIA NeMo (Parakeet-TDT)** 模型的參數，產出品質超越一般市面 GUI 工具的 AI 字幕。
+**English** | [繁體中文](TUNING_GUIDE.zh-TW.md)
 
-經過實測驗證，使用本指南建議的參數，能有效解決 AI 字幕常見的**幻覺（無中生有）**、**人名聽錯**以及**斷句破碎**等問題。
+This guide helps you tune the parameters of the **NVIDIA NeMo (Parakeet-TDT)** model to produce AI subtitles that outperform typical off-the-shelf GUI tools.
 
-> **📋 前置條件：** 使用前請先完成 NemoScribe 安裝，詳見 [README.md](../README.md)。
+The recommended parameters below have been verified through real-world testing and effectively address the most common AI subtitle problems: **hallucinations** (text appearing out of nowhere), **misheard names**, and **fragmented sentence splitting**.
 
----
-
-## 📑 目錄
-
-- [⚡ 快速開始](#-快速開始懶人包)
-- [🏆 核心策略](#-核心策略為什麼需要調整)
-- [🎬 場景 A：戲劇與電影](#-場景-a戲劇與電影-dramamovie)
-- [📰 場景 B：新聞與訪談](#-場景-b新聞與訪談-newsinterview)
-- [💻 場景 C：技術教學與解說](#-場景-c技術教學與解說-techtutorial)
-- [🔧 通用基礎參數](#-通用基礎參數-base-config)
-- [🤖 LLM 後處理](#-llm-後處理-llm-post-processing)
-- [⚡ 批次處理指令](#-批次處理指令-batch-processing)
-- [❓ 常見問題 FAQ](#-常見問題-faq)
+> **📋 Prerequisite:** Install NemoScribe first — see [README.md](../README.md).
 
 ---
 
-## ⚡ 快速開始（懶人包）
+## 📑 Table of Contents
 
-**第一次使用？先產生 VAD / no-VAD 兩個候選版本：**
+- [⚡ Quick Start (TL;DR)](#-quick-start-tldr)
+- [🏆 Core Strategy: Why Tune?](#-core-strategy-why-tune)
+- [🎬 Scenario A: Drama & Movies](#-scenario-a-drama--movies)
+- [📰 Scenario B: News & Interviews](#-scenario-b-news--interviews)
+- [💻 Scenario C: Tech Tutorials](#-scenario-c-tech-tutorials)
+- [🔧 Base Config](#-base-config)
+- [🤖 LLM Post-processing](#-llm-post-processing)
+- [⚡ Batch Processing](#-batch-processing)
+- [❓ FAQ](#-faq)
+
+---
+
+## ⚡ Quick Start (TL;DR)
+
+**First time? Generate both VAD and no-VAD candidates:**
 
 ```bash
 uv run nemoscribe \
-    video_path="您的影片.mp4" \
-    output_path="輸出字幕.srt" \
+    video_path="your_video.mp4" \
+    output_path="output.srt" \
     compute_dtype=float32 \
     decoding.rnnt_fused_batch_size=0 \
     decoding.segment_gap_threshold=20 \
     ab_test.vad=true
 ```
 
-這會輸出 `輸出字幕.vad.srt` 與 `輸出字幕.no_vad.srt`。先挑比較順的一版；想要更精確的結果，再根據影片類型參考下方的場景設定。
+This writes `output.vad.srt` and `output.no_vad.srt`. Pick the version that reads better; for more precise results, follow the scenario-specific settings below based on your content type.
 
 ---
 
-## 🏆 核心策略：為什麼需要調整？
+## 🏆 Core Strategy: Why Tune?
 
-一般的 AI 字幕工具通常使用「預設值」，這就像是用一把粗糙的篩子去濾沙。我們的策略是：
-1.  **比較 VAD 與 no-VAD**：VAD 可過濾雜訊與降低幻覺，但也可能切掉細微對話；no-VAD 對收音乾淨的戲劇/電影可能更完整。
-2.  **縮短切分長度 (Chunking)**：讓 AI 每分鐘「刷新」一次大腦，保持專注力。
-3.  **優化時間軸邏輯**：強制 AI 輸出完整的句子時間點。
+Typical AI subtitle tools run with "defaults", which is like sifting sand with a coarse sieve. Our strategy is:
+1.  **Compare VAD vs no-VAD**: VAD filters noise and reduces hallucinations, but may also cut subtle dialogue; no-VAD can be more complete on cleanly recorded drama/movie audio.
+2.  **Shorter chunking**: Let the model "refresh" every minute to stay focused.
+3.  **Better timestamp logic**: Force the model to output complete-sentence timings.
 
 ---
 
-## 🎬 場景 A：戲劇與電影 (Drama/Movie)
-**適用：** 美劇、電影、動漫。
-**特徵：** 背景音複雜、語速快、有呼救聲/氣音/低語。
+## 🎬 Scenario A: Drama & Movies
+**Best for:** TV series, movies, anime.
+**Characteristics:** Complex background audio, fast speech, cries for help / breathy voices / whispers.
 
-### 🏆 推薦流程（先比較候選版本）
+### 🏆 Recommended Workflow (compare candidates first)
 
-戲劇/電影場景不應假設 VAD 永遠最好。建議先用同一組 ASR 設定產生 VAD 與 no-VAD 兩個候選版本，再選較自然的一版：
+For drama/movie content, do not assume VAD is always better. Generate both VAD and no-VAD candidates with the same ASR settings, then pick the more natural one:
 
 ```bash
 uv run nemoscribe \
-    video_path="您的影片.mkv" \
-    output_path="輸出字幕.srt" \
+    video_path="your_video.mkv" \
+    output_path="output.srt" \
     compute_dtype=float32 \
     decoding.rnnt_fused_batch_size=0 \
     decoding.segment_gap_threshold=20 \
     ab_test.vad=true
 ```
 
-這會輸出：
+This writes:
 
 ```text
-輸出字幕.vad.srt
-輸出字幕.no_vad.srt
+output.vad.srt
+output.no_vad.srt
 ```
 
-VAD 版本常見優點：
-- 背景音、音樂、沉默較多時，可減少「無中生有」的字幕
-- 切分點更傾向落在靜音處
+Typical advantages of the VAD version:
+- Fewer "out of nowhere" subtitles when there is lots of background audio, music, or silence
+- Split points tend to land on silence
 
-no-VAD 版本常見優點：
-- 收音乾淨時，可能保留更多短句與細微對話
-- 避免 VAD 誤判造成漏字
+Typical advantages of the no-VAD version:
+- May preserve more short lines and subtle dialogue on clean recordings
+- Avoids missing words caused by VAD misdetection
 
-### VAD 候選參數
+### VAD Candidate Parameters
 
-若您決定使用 VAD，以下是戲劇/電影場景可嘗試的 VAD 候選參數：
+If you decide to use VAD, here are candidate VAD parameters for drama/movie content:
 
 ```bash
 uv run nemoscribe \
-    video_path="您的影片.mkv" \
-    output_path="輸出字幕.srt" \
+    video_path="your_video.mkv" \
+    output_path="output.srt" \
     compute_dtype=float32 \
     vad.enabled=true \
     vad.model="vad_multilingual_frame_marblenet" \
@@ -106,60 +108,60 @@ uv run nemoscribe \
     decoding.segment_gap_threshold=20
 ```
 
-這組 VAD 參數能處理以下問題：
-- **幻覺問題**：AI 在靜音或背景音樂處「無中生有」產生不存在的對話
-- **遺漏問題**：細微的呼救聲、低語、氣音被忽略
-- **斷句破碎**：一句話被切成多段不完整的字幕
+This VAD parameter set addresses the following issues:
+- **Hallucinations**: the model inventing dialogue during silence or background music
+- **Missed speech**: subtle cries for help, whispers, and breathy voices being ignored
+- **Fragmented splitting**: one sentence being cut into multiple incomplete subtitles
 
-> **Chicago Fire 實測（2026-05-05）**：以 `Chicago Fire S12E01`、RTX 3070 Laptop GPU、NeMo 2.7.3 實跑，穩定可重現的 CUDA 組合為 `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`。在這個樣本中，no-VAD 版本的字幕段數與詞數略高，粗略 WER 也略低；VAD 版本則仍能保持長段落控制與降低背景音風險。因此建議一般使用者先跑 `ab_test.vad=true`。
+> **Chicago Fire validation (2026-05-05)**: Tested on `Chicago Fire S12E01` with an RTX 3070 Laptop GPU and NeMo 2.7.3, the stable and reproducible CUDA combination is `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`. In this sample, the no-VAD version had slightly more segments and words with a slightly lower rough WER; the VAD version still kept long segments under control and reduced background-audio risk. We therefore recommend most users start with `ab_test.vad=true`.
 
-> **注意**：`decoding.rnnt_timestamp_type="all"` 和 `decoding.segment_separators=[".", "?", "!"]` 為預設值，無需手動設定。Chicago Fire 實測中，`segment_gap_threshold=20` 會在保留標點分段的前提下，進一步補切過長段落。
+> **Note**: `decoding.rnnt_timestamp_type="all"` and `decoding.segment_separators=[".", "?", "!"]` are defaults and need no manual setting. In the Chicago Fire test, `segment_gap_threshold=20` further split overly long segments while preserving punctuation-based splitting.
 
-### 參數詳解
-| 參數 | 推薦值 | 原因 |
+### Parameter Details
+| Parameter | Recommended | Why |
 | :--- | :--- | :--- |
-| `vad.onset` | `0.2` | **經測試驗證最佳值**。平衡靈敏度與準確度，WER 最低且時間戳記最準確。 |
-| `vad.offset` | `0.1` | **較低的結束門檻**。確保捕捉完整語句結尾。 |
-| `vad.min_duration_on` | `0.1` | 保留極短促的發音，低於 0.1 秒通常是雜訊。 |
-| `vad.min_duration_off` | `0.05` | **防止對話合併**。預設 0.2s 會將短停頓（如對話間的換氣）合併，造成 40+ 秒的超長片段。降至 0.05 可改善 35%。 |
-| `vad.pad_onset` | `0.1` | 從預設 0.2 降低，減少段落前的 padding，避免重疊。 |
-| `vad.pad_offset` | `0.1` | 從預設 0.2 降低，減少段落後的 padding，避免重疊。 |
-| `vad.filter_speech_first` | `false` | **不強行過濾**。避免誤刪背景吵雜的對話。 |
-| `compute_dtype` | `float32` | **Chicago Fire 實測穩定值**。在這台 RTX 3070 Laptop GPU 上比 `bfloat16` 更穩定。 |
-| `decoding.rnnt_fused_batch_size` | `0` | **關閉 CUDA graphs**。Chicago Fire 實跑時可避免 warmup/首段轉寫階段的 CUDA illegal memory access。 |
-| `decoding.segment_separators` | `[".", "?", "!"]` | **標點分割**。在句子結尾處分割段落，避免超長字幕。 |
-| `decoding.segment_gap_threshold` | `20` | **Chicago Fire 實測最佳值**。最長字幕從 30.48s 降到 12.48s；`15/10` 沒有再降低最長段。 |
-| `postprocessing.enable_itn` | `false` | 戲劇對白通常不需要將數字轉為阿拉伯數字。 |
+| `vad.onset` | `0.2` | **Test-verified optimum**. Balances sensitivity and accuracy — lowest WER and most accurate timestamps. |
+| `vad.offset` | `0.1` | **Lower end-of-speech threshold**. Ensures complete sentence endings are captured. |
+| `vad.min_duration_on` | `0.1` | Keeps very short utterances; below 0.1s is usually noise. |
+| `vad.min_duration_off` | `0.05` | **Prevents dialogue merging**. The default 0.2s merges short pauses (e.g. breaths between lines), creating 40+ second mega-segments. Lowering to 0.05 improves this by 35%. |
+| `vad.pad_onset` | `0.1` | Reduced from the default 0.2 to cut leading padding and avoid overlap. |
+| `vad.pad_offset` | `0.1` | Reduced from the default 0.2 to cut trailing padding and avoid overlap. |
+| `vad.filter_speech_first` | `false` | **No aggressive filtering**. Avoids deleting dialogue buried in noisy backgrounds. |
+| `compute_dtype` | `float32` | **Chicago Fire verified stable value**. More stable than `bfloat16` on this RTX 3070 Laptop GPU. |
+| `decoding.rnnt_fused_batch_size` | `0` | **Disables CUDA graphs**. Avoids CUDA illegal memory access during warmup / first-chunk transcription in the Chicago Fire run. |
+| `decoding.segment_separators` | `[".", "?", "!"]` | **Punctuation splitting**. Splits segments at sentence boundaries to avoid overly long subtitles. |
+| `decoding.segment_gap_threshold` | `20` | **Chicago Fire verified optimum**. Longest subtitle dropped from 30.48s to 12.48s; `15/10` did not reduce it further. |
+| `postprocessing.enable_itn` | `false` | Drama dialogue usually doesn't need numbers converted to digits. |
 
-### 效果展示
+### Before / After
 
-使用推薦參數前後的差異：
+The difference with the recommended parameters:
 
-| 問題類型 | ❌ 優化前 | ✅ 優化後 |
+| Issue | ❌ Before | ✅ After |
 | :--- | :--- | :--- |
-| 幻覺 | 靜音處出現 "Thank you for watching" | 正確保持靜音，無多餘文字 |
-| 遺漏 | 背景中的 "Help!" 呼救聲被忽略 | 成功捕捉到細微的呼救聲 |
-| 斷句 | "I can't" / "believe this" (分成兩段) | "I can't believe this." (完整一句) |
+| Hallucination | "Thank you for watching" appears during silence | Correctly stays silent, no extra text |
+| Missed speech | A background "Help!" cry is ignored | Subtle cries are captured |
+| Splitting | "I can't" / "believe this" (two fragments) | "I can't believe this." (one complete sentence) |
 
 ---
 
-## 📰 場景 B：新聞與訪談 (News/Interview)
-**適用：** 新聞報導、攝影棚訪談、紀錄片。
-**特徵：** 收音清晰、語速穩定、背景乾淨。
+## 📰 Scenario B: News & Interviews
+**Best for:** News reports, studio interviews, documentaries.
+**Characteristics:** Clean recording, steady speech rate, quiet background.
 
-### 參數詳解
-| 參數 | 推薦值 | 原因 |
+### Parameter Details
+| Parameter | Recommended | Why |
 | :--- | :--- | :--- |
-| `vad.onset` | `0.5` | **標準門檻**。過濾掉主播的換氣聲、翻紙聲。 |
-| `vad.min_duration_on` | `0.2` | 語句通常完整，不需要抓短音。 |
-| `vad.filter_speech_first` | `true` | **開啟過濾**。讓主要人聲更純淨。 |
-| `postprocessing.enable_itn` | `true` | **必開**。將 "January first" 自動轉為 "Jan 1st"。 |
+| `vad.onset` | `0.5` | **Standard threshold**. Filters out the anchor's breaths and paper shuffling. |
+| `vad.min_duration_on` | `0.2` | Sentences are usually complete; no need to catch very short sounds. |
+| `vad.filter_speech_first` | `true` | **Enable filtering**. Keeps the main voice cleaner. |
+| `postprocessing.enable_itn` | `true` | **Must-have**. Automatically converts "January first" to "Jan 1st". |
 
-**新聞/訪談專用指令範例：**
+**Example command for news/interviews:**
 ```bash
 uv run nemoscribe \
-    video_path="您的新聞影片.mp4" \
-    output_path="您的新聞字幕.srt" \
+    video_path="your_news_video.mp4" \
+    output_path="your_news_subtitle.srt" \
     vad.enabled=true \
     vad.model="vad_multilingual_frame_marblenet" \
     vad.onset=0.5 \
@@ -173,25 +175,25 @@ uv run nemoscribe \
 
 ---
 
-## 💻 場景 C：技術教學與解說 (Tech/Tutorial)
-**適用：** 程式教學、AI 模型解說、軟體操作演示。
-**特徵：** 充滿版本號/參數/埠號、講者會有操作時的停頓、居家錄音環境。
+## 💻 Scenario C: Tech Tutorials
+**Best for:** Programming tutorials, AI model walkthroughs, software demos.
+**Characteristics:** Full of version numbers / parameters / port numbers, pauses while the speaker operates, home-recording environments.
 
-### 核心策略：
-技術影片最怕把 "Windows Eleven" 寫成單字。此模式專注於**數字格式化**與**保留思考停頓**。
+### Core Strategy:
+The worst failure mode for tech videos is spelling out "Windows Eleven" as words. This mode focuses on **number formatting** and **preserving thinking pauses**.
 
-| 參數 | 推薦值 | 原因 |
+| Parameter | Recommended | Why |
 | :--- | :--- | :--- |
-| `vad.onset` | `0.3` | **中庸設定**。比新聞靈敏一點，避免切掉講者思考後的發語詞（如 "呃... 然後我們..."），但又不至於錄下鍵盤聲。 |
-| `vad.offset` | `0.2` | 稍微延後切斷，適應邊想邊講的節奏。 |
-| `postprocessing.enable_itn` | `true` | **絕對核心！** 這是看懂教學的關鍵。<br>效果：<br>❌ "Python three point ten"<br>✅ "Python 3.10"<br>❌ "Port eight thousand eighty"<br>✅ "Port 8080" |
-| `audio.max_chunk_duration` | `60` | 維持 60 秒，避免長篇大論導致的飄移。 |
+| `vad.onset` | `0.3` | **Middle ground**. More sensitive than news mode so filler words after a pause (e.g. "uh... so then we...") aren't cut, but not so sensitive that keyboard noise is recorded. |
+| `vad.offset` | `0.2` | Slightly delayed cut-off to fit a think-while-talking rhythm. |
+| `postprocessing.enable_itn` | `true` | **Absolutely essential!** This is what makes tutorials readable.<br>Effect:<br>❌ "Python three point ten"<br>✅ "Python 3.10"<br>❌ "Port eight thousand eighty"<br>✅ "Port 8080" |
+| `audio.max_chunk_duration` | `60` | Keep 60 seconds to avoid drift over long monologues. |
 
-**技術教學專用指令範例：**
+**Example command for tech tutorials:**
 ```bash
 uv run nemoscribe \
-    video_path="您的教學影片.mp4" \
-    output_path="您的教學字幕.srt" \
+    video_path="your_tutorial_video.mp4" \
+    output_path="your_tutorial_subtitle.srt" \
     vad.enabled=true \
     vad.model="vad_multilingual_frame_marblenet" \
     vad.onset=0.3 \
@@ -205,52 +207,52 @@ uv run nemoscribe \
 
 ---
 
-## 🔧 通用基礎參數 (Base Config)
+## 🔧 Base Config
 
-無論哪種場景，以下參數建議作為基礎設定：
+Whatever the scenario, these parameters are recommended as a baseline:
 
-| 參數 | 推薦值 | 影響 |
+| Parameter | Recommended | Effect |
 | :--- | :--- | :--- |
-| `audio.max_chunk_duration` | `60` | 強制每 60 秒切一段，避免模型疲勞。 |
-| `audio.smart_segmentation` | `true` | 聰明地在靜音處切分。 |
-| `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
-| `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
-| `decoding.segment_gap_threshold` | `None` | 基於詞間隔的段落分割（單位：幀，需為正整數）。當兩個連續詞之間的間隔超過此閾值時，強制分割為新段落；若同時啟用 `segment_separators`，NemoScribe 會保留標點分段並額外套用 gap 分段。 |
-| `ab_test.vad` | `true` | 不確定 VAD 是否適合時，先同時產生 VAD / no-VAD 候選字幕。 |
+| `audio.max_chunk_duration` | `60` | Forces a split every 60 seconds to avoid model fatigue. |
+| `audio.smart_segmentation` | `true` | Splits intelligently at silence. |
+| `decoding.rnnt_timestamp_type` | `"all"` | Outputs all timestamp types (default). Works best with segment_separators. |
+| `decoding.segment_separators` | `[".", "?", "!"]` | Splits segments at punctuation (default). **Verified**: reduces long segments from 46.96s to 11.28s. Set to an empty list to disable. |
+| `decoding.segment_gap_threshold` | `None` | Gap-based segment splitting (unit: frames, must be a positive integer). Forces a new segment when the gap between two consecutive words exceeds the threshold; when `segment_separators` is also enabled, NemoScribe keeps punctuation splits and applies gap splits on top. |
+| `ab_test.vad` | `true` | When unsure whether VAD helps, generate both VAD / no-VAD candidates first. |
 
 ---
 
-## 🤖 LLM 後處理 (LLM Post-processing)
+## 🤖 LLM Post-processing
 
-**適用情境：** 字幕中人名、專有名詞辨識有誤，或需要更高的一致性。
+**When to use:** Names and proper nouns are misrecognized in the subtitles, or you need higher consistency.
 
-ASR 模型在辨識人名和專有名詞時有先天限制（例如將 "Kylie Estevez" 聽成 "Alias of us"）。LLM 後處理透過大型語言模型修正這類錯誤。
+ASR models have inherent limits in recognizing names and proper nouns (e.g. hearing "Kylie Estevez" as "Alias of us"). LLM post-processing fixes this class of errors with a large language model.
 
-### 前置條件
+### Prerequisites
 
 ```bash
-# 安裝 LLM 相依套件
+# Install LLM dependencies
 uv sync --extra llm
 
-# 設定 API 金鑰
+# Configure the API key
 cp .env.example .env
-# 編輯 .env，加入：OPENAI_API_KEY=sk-... 或 ANTHROPIC_API_KEY=sk-ant-...
+# Edit .env and add: OPENAI_API_KEY=sk-... or ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### 推薦設定
+### Recommended Setup
 
-| 提供商 | 模型 | 品質 | 成本/集 | 建議場景 |
+| Provider | Model | Quality | Cost/episode | When to use |
 |--------|------|------|---------|----------|
-| OpenAI | `gpt-4o-mini` | 良好 | ~$0.06 | **首選**：性價比最高 |
-| OpenAI | `gpt-4o` | 優秀 | ~$0.30 | 需要更高品質時 |
-| Anthropic | `claude-3-5-sonnet-20241022` | 優秀 | ~$0.24 | 偏好 Anthropic 時 |
+| OpenAI | `gpt-4o-mini` | Good | ~$0.06 | **First choice**: best cost/quality ratio |
+| OpenAI | `gpt-4o` | Excellent | ~$0.30 | When you need higher quality |
+| Anthropic | `claude-3-5-sonnet-20241022` | Excellent | ~$0.24 | If you prefer Anthropic |
 
-### 使用範例
+### Usage Example
 
 ```bash
-# 搭配 VAD + LLM（完整推薦流程）
+# VAD + LLM (full recommended pipeline)
 uv run nemoscribe \
-    video_path="您的影片.mkv" \
+    video_path="your_video.mkv" \
     vad.enabled=true \
     vad.onset=0.2 \
     vad.offset=0.1 \
@@ -262,36 +264,36 @@ uv run nemoscribe \
     llm_postprocess.model=gpt-4o-mini
 ```
 
-### 參數說明
+### Parameter Reference
 
-| 參數 | 推薦值 | 說明 |
+| Parameter | Recommended | Description |
 | :--- | :--- | :--- |
-| `llm_postprocess.enabled` | `true` | 啟用 LLM 修正 |
-| `llm_postprocess.provider` | `openai` | 提供商：`openai` 或 `anthropic` |
-| `llm_postprocess.model` | `gpt-4o-mini` | 模型名稱 |
-| `llm_postprocess.batch_size` | `20` | 每次送給 LLM 的字幕段落數。增大可提供更多上下文但較慢 |
-| `llm_postprocess.max_retries` | `3` | 驗證失敗時的最大重試次數 |
+| `llm_postprocess.enabled` | `true` | Enable LLM correction |
+| `llm_postprocess.provider` | `openai` | Provider: `openai` or `anthropic` |
+| `llm_postprocess.model` | `gpt-4o-mini` | Model name |
+| `llm_postprocess.batch_size` | `20` | Subtitle segments per LLM request. Larger gives more context but is slower |
+| `llm_postprocess.max_retries` | `3` | Max retries when validation fails |
 
-### 已知限制
+### Known Limitations
 
-- **過度修正**：約 10% 的字幕段落可能被不必要地修改（多為輕微變動）
-- **語意錯誤**：LLM 難以修正語意層面的錯誤（例如將 "breach" 誤改為 "bridge"）
-- **數字漂移**：偶爾會改變數字（例如 "thirty seconds" → "40 seconds"）
-- **成本**：需要付費 API，但成本很低（GPT-4o-mini 約每集 $0.06）
+- **Over-correction**: ~10% of segments may be modified unnecessarily (mostly minor changes)
+- **Semantic errors**: LLMs struggle with semantic-level mistakes (e.g. changing "breach" to "bridge")
+- **Number drift**: numbers occasionally change (e.g. "thirty seconds" → "40 seconds")
+- **Cost**: requires a paid API, but it's cheap (~$0.06/episode with GPT-4o-mini)
 
-### 運作原理
+### How It Works
 
-1. 將字幕分批（每批 20 段）送給 LLM
-2. LLM 以 JSON 格式回傳修正結果
-3. 驗證修正幅度（相似度檢查，防止過度修改）
-4. 若驗證失敗，提供回饋並重試（最多 3 次）
-5. 任何環節失敗時，自動降級使用原始字幕
+1. Subtitles are sent to the LLM in batches (20 segments per batch)
+2. The LLM returns corrections in JSON format
+3. Correction magnitude is validated (similarity check to prevent over-editing)
+4. On validation failure, feedback is provided and the batch is retried (up to 3 times)
+5. If anything fails, the original subtitles are used as a graceful fallback
 
 ---
 
-## ⚡ 批次處理指令 (Batch Processing)
+## ⚡ Batch Processing
 
-一次處理整個資料夾的影片（以戲劇/電影模式為例）：
+Process a whole folder of videos at once (drama/movie mode shown):
 
 ```bash
 uv run nemoscribe \
@@ -311,66 +313,66 @@ uv run nemoscribe \
 
 ---
 
-## ❓ 常見問題 FAQ
+## ❓ FAQ
 
-### Q: 處理一小時的影片大約需要多久？
-**A:** 取決於您的 GPU 效能。以 RTX 3080 為例，一小時影片約需 3-5 分鐘處理時間。開啟 VAD 會稍微增加處理時間，但能大幅提升品質。
+### Q: How long does a one-hour video take?
+**A:** It depends on your GPU. On an RTX 3080, a one-hour video takes roughly 3–5 minutes. Enabling VAD adds a little processing time but greatly improves quality.
 
-### Q: GPU 記憶體不足 (CUDA out of memory) 怎麼辦？
-**A:** 嘗試縮短切分長度：
+### Q: What if I get CUDA out of memory?
+**A:** Try a shorter chunk duration:
 ```bash
-audio.max_chunk_duration=30  # 從 60 秒改為 30 秒
+audio.max_chunk_duration=30  # down from 60 seconds
 ```
 
-### Q: 字幕出現亂碼或奇怪符號？
-**A:** 這通常是編碼問題。NemoScribe 輸出的 SRT 檔案為 UTF-8 編碼，請確認您的播放器或編輯器支援 UTF-8。
+### Q: Subtitles contain garbled text or strange symbols?
+**A:** This is usually an encoding issue. NemoScribe writes SRT files in UTF-8 — make sure your player or editor supports UTF-8.
 
-### Q: 為什麼有些對話還是被漏掉了？
-**A:** 嘗試調低 VAD 靈敏度門檻：
+### Q: Why is some dialogue still missed?
+**A:** Try lowering the VAD sensitivity threshold:
 ```bash
-vad.onset=0.15  # 從 0.2 調到 0.15，更加敏感
+vad.onset=0.15  # from 0.2 down to 0.15, more sensitive
 ```
-注意：過低（如 0.1 以下）可能會把雜音也辨識進來，且時間戳記準確度會下降。
+Note: going too low (below ~0.1) may pick up noise as speech and degrade timestamp accuracy.
 
-若調整 VAD 後漏掉的仍是**重複的字詞或 false starts**（例如結巴、連續喊同一個名字），這是 `parakeet-tdt-0.6b-v2` 模型本身的已知限制（相較 1.1b 模型的退化，見[官方討論 #8](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2/discussions/8)），無法靠參數修正。需要逐字保留不流暢語時，請改用 `pretrained_name="nvidia/parakeet-tdt-1.1b"`。
+If what's still missing after VAD tuning is **repeated words or false starts** (e.g. stuttering, shouting the same name repeatedly), this is a known limitation of the `parakeet-tdt-0.6b-v2` model itself (a regression vs the 1.1b model, see [official discussion #8](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2/discussions/8)) and cannot be fixed with parameters. If you need verbatim disfluencies, switch to `pretrained_name="nvidia/parakeet-tdt-1.1b"`.
 
-### Q: 可以處理非英文的影片嗎？
-**A:** `parakeet-tdt-0.6b-v2` 模型專為英文優化。處理其他語言建議使用：
-- `nvidia/parakeet-tdt-0.6b-v3`：支援 25 種語言，自動語言偵測
-- `nvidia/canary-1b-v2`：支援 25 種語言，並可進行翻譯
+### Q: Can it handle non-English videos?
+**A:** The `parakeet-tdt-0.6b-v2` model is optimized for English. For other languages, use:
+- `nvidia/parakeet-tdt-0.6b-v3`: 25 languages, automatic language detection
+- `nvidia/canary-1b-v2`: 25 languages, with translation support
 
-使用方式：
+Usage:
 ```bash
-uv run nemoscribe video_path="影片.mp4" pretrained_name="nvidia/parakeet-tdt-0.6b-v3"
+uv run nemoscribe video_path="video.mp4" pretrained_name="nvidia/parakeet-tdt-0.6b-v3"
 ```
 
-### Q: 字幕段落太長（超過 30 秒）怎麼辦？
-**A:** 這通常發生在快速對話場景，嘗試以下方法：
+### Q: Subtitle segments are too long (over 30 seconds)?
+**A:** This usually happens in fast-dialogue scenes. Try the following:
 
-1. **確認標點分割已啟用**（預設開啟）：
+1. **Confirm punctuation splitting is enabled** (on by default):
    ```bash
    decoding.segment_separators=".,?,!"
    ```
 
-2. **降低 VAD 的 min_duration_off** 來保留更多對話間隙：
+2. **Lower VAD's min_duration_off** to keep more gaps between lines:
    ```bash
-   vad.min_duration_off=0.05  # 預設 0.2
+   vad.min_duration_off=0.05  # default 0.2
    ```
 
-3. **使用 `segment_gap_threshold` 基於詞間隔分割**：
+3. **Use `segment_gap_threshold` for gap-based splitting**:
    ```bash
-   decoding.segment_gap_threshold=20  # 當詞間隔超過 20 幀時分割
+   decoding.segment_gap_threshold=20  # split when the inter-word gap exceeds 20 frames
    ```
 
-4. 若只想依 gap 分段、不想保留標點切段，可額外停用：
+4. If you only want gap-based splitting without punctuation splits, additionally disable:
    ```bash
    decoding.segment_separators=
    ```
 
-5. 如果仍有超長段落，這可能是連續快速對話沒有靜音間隙的正常現象。
+5. If very long segments remain, it's likely continuous rapid dialogue with no silence gaps — which is expected.
 
-### Q: 如何確認 CUDA/GPU 是否正常運作？
-**A:** 執行以下指令檢查：
+### Q: How do I verify CUDA/GPU is working?
+**A:** Run:
 ```bash
 uv run python scripts/check_cuda.py
 ```
