@@ -197,10 +197,10 @@ uv run python tests/test_improvements.py --test srt
 uv run python tests/test_improvements.py --test cli
 ```
 
-Run broader validation when the bump is substantial:
+Run the full regression suite when the bump is substantial. This currently runs all 22 tests; do not use `--test full` for this because that is only the single full-config test.
 
 ```bash
-uv run python tests/test_improvements.py --test full
+uv run python tests/test_improvements.py
 ```
 
 ### 4. Real transcription smoke test
