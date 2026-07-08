@@ -200,9 +200,9 @@ Ordered. Each item is scoped for one agent session.
 - **Verify**: ran both scripts against `tmp_outputs/unified_eval/*.srt` on 2026-07-08; full before/after output equivalence was not captured, but smoke outputs succeeded.
 - **Risks**: subtle normalization differences between the duplicated copies — diff them before unifying; if they intentionally differ, document why instead of merging. **Stop and ask**: no.
 
-### P2-2: Unify the Anthropic/OpenAI batch loops in `llm_postprocess.py`
+### P2-2: Unify the Anthropic/OpenAI batch loops in `llm_postprocess.py` — ✅ done 2026-07-08, pending commit
 - **Problem**: `postprocess_subtitles_anthropic` (`llm_postprocess.py:434`) and `postprocess_subtitles_openai` (`llm_postprocess.py:499`) are ~60-line near-identical copies differing only in client construction and availability flag.
-- **Direction**: Extract one `_postprocess_with_provider(segments, config, api_key, provider)`; keep the two public function names as thin wrappers (they're exported implicitly via module use — check `nemoscribe/__init__.py`; only `postprocess_subtitles` is exported, so internals are free to move).
+- **Direction**: Extracted `_postprocess_with_provider(segments, config, client, provider)`; kept the two public function names as thin wrappers around provider-specific client setup.
 - **Verify**: `--test llm_parsing`, `--test llm_validation`, `--test llm_fallback`, `--test llm_validation_fallback`, then full suite.
 - **Risks**: low; pure refactor with test coverage. **Stop and ask**: no.
 

@@ -431,6 +431,50 @@ def process_batch_with_agent_loop(
     return original_segments
 
 
+def _postprocess_with_provider(
+    segments: List[Tuple[float, float, str]],
+    config: LLMPostProcessConfig,
+    client: Any,
+    provider: str,
+) -> List[Tuple[float, float, str]]:
+    """Post-process subtitle batches with an initialized provider client."""
+    corrected_segments = []
+    total_batches = (len(segments) + config.batch_size - 1) // config.batch_size
+
+    for batch_idx in range(0, len(segments), config.batch_size):
+        batch_end = min(batch_idx + config.batch_size, len(segments))
+        batch = segments[batch_idx:batch_end]
+
+        # Add segment indices for tracking
+        indexed_batch = [
+            (batch_idx + i + 1, start, end, text)
+            for i, (start, end, text) in enumerate(batch)
+        ]
+
+        current_batch_num = batch_idx // config.batch_size + 1
+        logging.info(
+            f"Processing LLM batch {current_batch_num}/{total_batches} "
+            f"({len(batch)} segments)..."
+        )
+
+        # Process with agent loop (V2: validation + retry)
+        try:
+            batch_corrected = process_batch_with_agent_loop(
+                client=client,
+                indexed_batch=indexed_batch,
+                config=config,
+                provider=provider,
+            )
+            corrected_segments.extend(batch_corrected)
+        except Exception as e:
+            logging.error(
+                f"Agent loop failed for batch {current_batch_num}: {e}, using original text"
+            )
+            corrected_segments.extend(batch)
+
+    return corrected_segments
+
+
 def postprocess_subtitles_anthropic(
     segments: List[Tuple[float, float, str]],
     config: LLMPostProcessConfig,
@@ -459,41 +503,12 @@ def postprocess_subtitles_anthropic(
         logging.error(f"Failed to initialize Anthropic client: {e}")
         return segments
 
-    corrected_segments = []
-    total_batches = (len(segments) + config.batch_size - 1) // config.batch_size
-
-    for batch_idx in range(0, len(segments), config.batch_size):
-        batch_end = min(batch_idx + config.batch_size, len(segments))
-        batch = segments[batch_idx:batch_end]
-
-        # Add segment indices for tracking
-        indexed_batch = [
-            (batch_idx + i + 1, start, end, text)
-            for i, (start, end, text) in enumerate(batch)
-        ]
-
-        current_batch_num = batch_idx // config.batch_size + 1
-        logging.info(
-            f"Processing LLM batch {current_batch_num}/{total_batches} "
-            f"({len(batch)} segments)..."
-        )
-
-        # Process with agent loop (V2: validation + retry)
-        try:
-            batch_corrected = process_batch_with_agent_loop(
-                client=client,
-                indexed_batch=indexed_batch,
-                config=config,
-                provider="anthropic"
-            )
-            corrected_segments.extend(batch_corrected)
-        except Exception as e:
-            logging.error(
-                f"Agent loop failed for batch {current_batch_num}: {e}, using original text"
-            )
-            corrected_segments.extend(batch)
-
-    return corrected_segments
+    return _postprocess_with_provider(
+        segments=segments,
+        config=config,
+        client=client,
+        provider="anthropic",
+    )
 
 
 def postprocess_subtitles_openai(
@@ -524,41 +539,12 @@ def postprocess_subtitles_openai(
         logging.error(f"Failed to initialize OpenAI client: {e}")
         return segments
 
-    corrected_segments = []
-    total_batches = (len(segments) + config.batch_size - 1) // config.batch_size
-
-    for batch_idx in range(0, len(segments), config.batch_size):
-        batch_end = min(batch_idx + config.batch_size, len(segments))
-        batch = segments[batch_idx:batch_end]
-
-        # Add segment indices for tracking
-        indexed_batch = [
-            (batch_idx + i + 1, start, end, text)
-            for i, (start, end, text) in enumerate(batch)
-        ]
-
-        current_batch_num = batch_idx // config.batch_size + 1
-        logging.info(
-            f"Processing LLM batch {current_batch_num}/{total_batches} "
-            f"({len(batch)} segments)..."
-        )
-
-        # Process with agent loop (V2: validation + retry)
-        try:
-            batch_corrected = process_batch_with_agent_loop(
-                client=client,
-                indexed_batch=indexed_batch,
-                config=config,
-                provider="openai"
-            )
-            corrected_segments.extend(batch_corrected)
-        except Exception as e:
-            logging.error(
-                f"Agent loop failed for batch {current_batch_num}: {e}, using original text"
-            )
-            corrected_segments.extend(batch)
-
-    return corrected_segments
+    return _postprocess_with_provider(
+        segments=segments,
+        config=config,
+        client=client,
+        provider="openai",
+    )
 
 
 def postprocess_subtitles(

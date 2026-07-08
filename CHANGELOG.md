@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated the default LLM post-processing model from `claude-3-5-sonnet-20241022` to `claude-sonnet-5`, and refreshed OpenAI examples to use `gpt-5.4-mini`
 - Reused the shared SRT timestamp parser in benchmark/quality scripts; the parser now accepts both comma and dot millisecond separators
+- Deduplicated the Anthropic/OpenAI LLM subtitle batch loop while preserving provider-specific client setup and fallback behavior
 
 ### Added
 
