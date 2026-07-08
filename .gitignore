@@ -55,6 +55,7 @@ Thumbs.db
 
 # Benchmark artifacts
 evaluation_report.txt
+tmp_outputs/
 
 # Model cache (large files)
 *.nemo

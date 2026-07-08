@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from nemoscribe.srt import parse_srt_timestamp
+
 
 @dataclass
 class SRTEntry:
@@ -37,16 +39,6 @@ class SRTEntry:
     start_time: float  # seconds
     end_time: float    # seconds
     text: str
-
-
-def parse_srt_time(time_str: str) -> float:
-    """Convert SRT timestamp to seconds."""
-    # Format: HH:MM:SS,mmm
-    match = re.match(r'(\d{2}):(\d{2}):(\d{2})[,.](\d{3})', time_str.strip())
-    if not match:
-        return 0.0
-    h, m, s, ms = match.groups()
-    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
 
 
 def parse_srt(filepath: str) -> List[SRTEntry]:
@@ -76,8 +68,8 @@ def parse_srt(filepath: str) -> List[SRTEntry]:
             if not time_match:
                 continue
 
-            start_time = parse_srt_time(time_match.group(1))
-            end_time = parse_srt_time(time_match.group(2))
+            start_time = parse_srt_timestamp(time_match.group(1))
+            end_time = parse_srt_timestamp(time_match.group(2))
 
             # Remaining lines: text (may contain HTML tags for formatting)
             text = ' '.join(lines[2:])

@@ -202,8 +202,9 @@ def parse_srt_timestamp(timestamp: str) -> float:
         >>> parse_srt_timestamp("00:01:23,456")
         83.456
     """
-    h, m, s = timestamp.split(":")
-    s, ms = s.split(",")
+    h, m, s = timestamp.strip().split(":")
+    s = s.replace(".", ",", 1)
+    s, ms = s.split(",", 1)
     return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
 
 

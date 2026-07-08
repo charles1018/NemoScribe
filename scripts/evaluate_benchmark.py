@@ -22,6 +22,8 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Optional
 
+from nemoscribe.srt import parse_srt_timestamp
+
 try:
     from jiwer import cer, wer
 except ImportError:
@@ -54,15 +56,6 @@ class EvaluationResult:
     total_ref_segments: int
     total_hyp_segments: int
     combined_score: float
-
-
-def parse_srt_timestamp(timestamp: str) -> float:
-    """Convert SRT timestamp (HH:MM:SS,mmm) to seconds."""
-    match = re.match(r'(\d{2}):(\d{2}):(\d{2})[,.](\d{3})', timestamp.strip())
-    if not match:
-        raise ValueError(f"Invalid timestamp format: {timestamp}")
-    hours, minutes, seconds, millis = map(int, match.groups())
-    return hours * 3600 + minutes * 60 + seconds + millis / 1000
 
 
 def parse_srt_file(filepath: Path) -> list[SubtitleEntry]:

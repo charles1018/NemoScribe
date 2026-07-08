@@ -746,7 +746,7 @@ def test_srt_formatting() -> TestResult:
 
 def test_srt_edge_cases() -> TestResult:
     """Test SRT timestamp formatting edge cases."""
-    from nemoscribe import format_srt_timestamp
+    from nemoscribe import format_srt_timestamp, parse_srt_timestamp
 
     try:
         # Test negative values (should clamp to 0)
@@ -773,6 +773,10 @@ def test_srt_edge_cases() -> TestResult:
         # Test hour boundary
         result = format_srt_timestamp(3600.0)
         assert result == "01:00:00,000", f"Expected exact hour, got {result}"
+
+        # Test timestamp parsing accepts standard comma and dot millisecond separators
+        assert parse_srt_timestamp("00:01:02,345") == 62.345
+        assert parse_srt_timestamp("00:01:02.345") == 62.345
 
         return TestResult(
             name="srt_edge_cases",

@@ -194,10 +194,10 @@ Ordered. Each item is scoped for one agent session.
 - **Verify**: local `uvx --from ruff==0.15.8 ruff check .`; workflow should be checked after push.
 - **Risks**: touching `pyproject.toml` indexes counts as NeMo-sensitive change → full UPGRADE_NEMO.md process. **Stop and ask**: before adding full test CI or any `pyproject.toml` change.
 
-### P2-1: Deduplicate SRT parsing in `scripts/`
+### P2-1: Deduplicate SRT parsing in `scripts/` — partially ✅ done 2026-07-08, pending commit
 - **Problem**: `scripts/evaluate_benchmark.py:59` and `scripts/analyze_quality.py:42` re-implement SRT timestamp parsing and text normalization instead of importing from `nemoscribe.srt` (the other two scripts do it right).
-- **Direction**: Import `parse_srt_timestamp` from `nemoscribe.srt`; consider moving a shared `parse_srt_file`/`normalize_text` into `nemoscribe/srt.py` if both scripts need it. Keep script CLIs unchanged.
-- **Verify**: run both scripts against `tmp_outputs/unified_eval/*.srt` (present on maintainer's machine) or any generated SRT; identical output before/after (capture before-output first).
+- **Direction**: `scripts/evaluate_benchmark.py` and `scripts/analyze_quality.py` now import `parse_srt_timestamp` from `nemoscribe.srt`; `parse_srt_file`/`normalize_text` remain script-local because their output shapes and reporting needs differ. Keep script CLIs unchanged.
+- **Verify**: ran both scripts against `tmp_outputs/unified_eval/*.srt` on 2026-07-08; full before/after output equivalence was not captured, but smoke outputs succeeded.
 - **Risks**: subtle normalization differences between the duplicated copies — diff them before unifying; if they intentionally differ, document why instead of merging. **Stop and ask**: no.
 
 ### P2-2: Unify the Anthropic/OpenAI batch loops in `llm_postprocess.py`
