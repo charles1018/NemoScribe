@@ -243,9 +243,9 @@ cp .env.example .env
 
 | Provider | Model | Quality | Cost/episode | When to use |
 |--------|------|------|---------|----------|
-| OpenAI | `gpt-4o-mini` | Good | ~$0.06 | **First choice**: best cost/quality ratio |
-| OpenAI | `gpt-4o` | Excellent | ~$0.30 | When you need higher quality |
-| Anthropic | `claude-3-5-sonnet-20241022` | Excellent | ~$0.24 | If you prefer Anthropic |
+| Anthropic | `claude-sonnet-5` | Excellent | $2/$10 per input/output MTok through 2026-08-31; then $3/$15 | Default provider; balanced quality and latency |
+| OpenAI | `gpt-5.4-mini` | Strong | $0.75/$4.50 per input/output MTok | Cost-efficient OpenAI option |
+| OpenAI | `gpt-5.4` | Excellent | $2.50/$15 per input/output MTok | When you need higher OpenAI quality |
 
 ### Usage Example
 
@@ -260,8 +260,8 @@ uv run nemoscribe \
     vad.pad_onset=0.1 \
     vad.pad_offset=0.1 \
     llm_postprocess.enabled=true \
-    llm_postprocess.provider=openai \
-    llm_postprocess.model=gpt-4o-mini
+    llm_postprocess.provider=anthropic \
+    llm_postprocess.model=claude-sonnet-5
 ```
 
 ### Parameter Reference
@@ -269,8 +269,8 @@ uv run nemoscribe \
 | Parameter | Recommended | Description |
 | :--- | :--- | :--- |
 | `llm_postprocess.enabled` | `true` | Enable LLM correction |
-| `llm_postprocess.provider` | `openai` | Provider: `openai` or `anthropic` |
-| `llm_postprocess.model` | `gpt-4o-mini` | Model name |
+| `llm_postprocess.provider` | `anthropic` | Provider: `openai` or `anthropic` |
+| `llm_postprocess.model` | `claude-sonnet-5` | Model name |
 | `llm_postprocess.batch_size` | `20` | Subtitle segments per LLM request. Larger gives more context but is slower |
 | `llm_postprocess.max_retries` | `3` | Max retries when validation fails |
 
@@ -279,7 +279,7 @@ uv run nemoscribe \
 - **Over-correction**: ~10% of segments may be modified unnecessarily (mostly minor changes)
 - **Semantic errors**: LLMs struggle with semantic-level mistakes (e.g. changing "breach" to "bridge")
 - **Number drift**: numbers occasionally change (e.g. "thirty seconds" → "40 seconds")
-- **Cost**: requires a paid API, but it's cheap (~$0.06/episode with GPT-4o-mini)
+- **Cost**: requires a paid API; estimate from current provider prices and your subtitle count before large runs
 
 ### How It Works
 

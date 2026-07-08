@@ -983,7 +983,7 @@ def test_llm_config() -> TestResult:
         llm_cfg = LLMPostProcessConfig()
         assert llm_cfg.enabled is False, "LLM should be disabled by default"
         assert llm_cfg.provider == "anthropic", f"Default provider should be anthropic, got {llm_cfg.provider}"
-        assert llm_cfg.model == "claude-3-5-sonnet-20241022"
+        assert llm_cfg.model == "claude-sonnet-5"
         assert llm_cfg.api_key is None
         assert llm_cfg.batch_size == 20
         assert llm_cfg.max_retries == 3
@@ -995,10 +995,10 @@ def test_llm_config() -> TestResult:
         assert cfg.llm_postprocess.enabled is False
 
         # Test custom config
-        custom = LLMPostProcessConfig(enabled=True, provider="openai", model="gpt-4o-mini", batch_size=30)
+        custom = LLMPostProcessConfig(enabled=True, provider="openai", model="gpt-5.4-mini", batch_size=30)
         assert custom.enabled is True
         assert custom.provider == "openai"
-        assert custom.model == "gpt-4o-mini"
+        assert custom.model == "gpt-5.4-mini"
         assert custom.batch_size == 30
 
         return TestResult(
@@ -1031,8 +1031,8 @@ def test_llm_cli_override() -> TestResult:
 
         # Test model override
         cfg = VideoToSRTConfig()
-        cfg = parse_args(["llm_postprocess.model=gpt-4o-mini"], cfg)
-        assert cfg.llm_postprocess.model == "gpt-4o-mini"
+        cfg = parse_args(["llm_postprocess.model=gpt-5.4-mini"], cfg)
+        assert cfg.llm_postprocess.model == "gpt-5.4-mini"
 
         # Test batch_size override
         cfg = VideoToSRTConfig()
@@ -1044,12 +1044,12 @@ def test_llm_cli_override() -> TestResult:
         cfg = parse_args([
             "llm_postprocess.enabled=true",
             "llm_postprocess.provider=openai",
-            "llm_postprocess.model=gpt-4o-mini",
+            "llm_postprocess.model=gpt-5.4-mini",
             "llm_postprocess.batch_size=15",
         ], cfg)
         assert cfg.llm_postprocess.enabled is True
         assert cfg.llm_postprocess.provider == "openai"
-        assert cfg.llm_postprocess.model == "gpt-4o-mini"
+        assert cfg.llm_postprocess.model == "gpt-5.4-mini"
         assert cfg.llm_postprocess.batch_size == 15
 
         return TestResult(
@@ -1271,7 +1271,7 @@ def test_llm_validation_fallback() -> TestResult:
             (1, 0.0, 2.0, "And it's taken six months for us to even try"),
         ]
         invalid_response = '{"1": "case."}'
-        config = LLMPostProcessConfig(provider="openai", model="gpt-4o-mini", max_retries=1)
+        config = LLMPostProcessConfig(provider="openai", model="gpt-5.4-mini", max_retries=1)
 
         result = process_batch_with_agent_loop(
             client=FakeOpenAIClient(invalid_response),

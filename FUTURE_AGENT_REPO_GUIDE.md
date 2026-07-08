@@ -19,11 +19,11 @@
 **What is risky or unclear**:
 - Some local-only documentation drift remains (`CLAUDE.md` still labels `--test full` as comprehensive unless manually corrected; the committed NeMo upgrade runbook was fixed on 2026-07-08 — see §3.1).
 - **No CI whatsoever** — all verification is manual/local, and full E2E verification requires a local GPU and local video files that agents may not have.
-- LLM post-processing defaults reference an outdated Anthropic model (`claude-3-5-sonnet-20241022`).
+- LLM live-API behavior is only covered by fallback tests unless the maintainer explicitly runs a real paid-provider sample.
 
 **Top 3 priorities for future agents** (details in §5):
-1. **P0** — ✅ done 2026-07-08, pending commit: fix the committed `--test full` documentation trap and remove the stray root `__init__.py`. Local `CLAUDE.md` wording still needs user-approved correction.
-2. **P1** — Refresh LLM post-processing model defaults and cost documentation (verify current model IDs against provider docs first).
+1. **P0** — ✅ done 2026-07-08, commit `e3611c9`: fix the committed `--test full` documentation trap and remove the stray root `__init__.py`. Local `CLAUDE.md` wording still needs user-approved correction.
+2. **P1** — ✅ done 2026-07-08, pending commit: refresh LLM post-processing model defaults and cost documentation using official provider docs.
 3. **P1** — Establish minimal automated verification (at least a lint + config-test job), pending user decision on CI cost.
 
 **The single most important warning**: *Never* upgrade `nemo-toolkit`, `torch`, `transformers`, `huggingface_hub`, `onnx`, CUDA indexes, or `uv.lock` by editing version strings alone. Read `UPGRADE_NEMO.md` first and follow its full validation checklist. The dependency matrix is fragile and every pin exists for a documented reason.
@@ -178,10 +178,10 @@ Ordered. Each item is scoped for one agent session.
 ### P0-2: Delete the stray root `__init__.py` — ✅ done 2026-07-08, pending commit
 - Covered in §3.2 (problem, direction, verification). One-file deletion + verification run. **Risks**: near zero; hatchling targets `nemoscribe/`. **Stop and ask**: no — but present the diff clearly and do not push.
 
-### P1-1: Refresh LLM post-processing model defaults and cost docs
-- **Problem**: Default `model: str = "claude-3-5-sonnet-20241022"` (`nemoscribe/llm_postprocess.py:101`) and doc comments reference model generations that are outdated as of mid-2026 (Claude 3.5 Sonnet, Claude 3 Opus, GPT-4o). README/CLAUDE cost tables are correspondingly stale. Old dated model IDs eventually get deprecated by providers, at which point LLM post-processing breaks at runtime for default-config users.
+### P1-1: Refresh LLM post-processing model defaults and cost docs — ✅ done 2026-07-08, pending commit
+- **Problem**: The default model used to be `claude-3-5-sonnet-20241022`, and docs referenced outdated model generations and per-episode cost estimates. Old dated model IDs eventually get deprecated by providers, at which point LLM post-processing breaks at runtime for default-config users.
 - **Why it matters**: This is the only feature that calls paid external APIs; a dead default model is a hard failure the fallback machinery cannot fully hide (every batch will error and fall back to uncorrected text).
-- **Direction**: Verify current recommended model IDs against official provider documentation **at implementation time** (do not trust this file or training data for model IDs). Update the config default, the docstrings/comments listing suggested models, README(±zh-TW) tables and cost estimates, and CHANGELOG. Keep `provider`/`model` fully user-overridable (already true).
+- **Direction**: Verified provider docs on 2026-07-08. Default is now `claude-sonnet-5`; OpenAI examples use `gpt-5.4-mini`; docs now use per-MTok pricing instead of fixed per-episode estimates. Keep `provider`/`model` fully user-overridable (already true).
 - **Files**: `nemoscribe/llm_postprocess.py`, `README.md`, `README.zh-TW.md`, `docs/TUNING_GUIDE.md`, `docs/TUNING_GUIDE.zh-TW.md`, `CHANGELOG.md`, tests `llm`/`llm_cli` in `tests/test_improvements.py` (they may assert the default model string — check `test_llm_config`).
 - **Verify**: full test suite; if the user provides an API key, one real run of `llm_postprocess.enabled=true provider=anthropic` on a short SRT; otherwise state clearly that live-API behavior was not exercised.
 - **Risks**: choosing a wrong/hallucinated model ID. Mitigation: fetch provider docs, or ask the user which models they pay for. **Stop and ask**: if unsure which provider tier the user wants as default.
@@ -296,7 +296,7 @@ Ordered. Each item is scoped for one agent session.
 | 1 | Careless NeMo-stack upgrade breaks resolution or decoding | Fragile pins documented in `pyproject.toml` + local CLAUDE.md tables (transformers <4.58, numpy <2, onnx <1.18, hf-hub <1.0) | High (tool unusable) | Medium (agents love bumping deps) | Hard rule: read `UPGRADE_NEMO.md` first; never edit version strings alone | Yes, if runbook followed | Any "Escalate before merging" trigger; GPU smoke test |
 | 2 | Agent runs `--test full`, believes suite is green | §3.1 | High (false verification) | Medium until local docs are fixed | `UPGRADE_NEMO.md` fixed; local `CLAUDE.md` still needs user-approved correction | Yes | — |
 | 3 | Subtitle-quality regression invisible to the test suite | Tests are config/logic-level; quality only measurable via GPU benchmark runs | Medium-High | Medium | Require Tier 2 run for pipeline-behavior changes; keep VAD/segment-separator defaults untouched | Partially | Judging WER/subjective quality trade-offs |
-| 4 | LLM default model gets deprecated by provider | `llm_postprocess.py:101` hardcodes `claude-3-5-sonnet-20241022` | Medium (feature silently degrades to no-op corrections) | High over time | P1-1 refresh; verify IDs against live provider docs | Yes, with doc verification | Choosing default provider/cost tier |
+| 4 | LLM default model gets deprecated by provider | Default model IDs are external provider contracts | Medium (feature silently degrades to no-op corrections) | Medium over time | Re-check official provider docs before changing defaults | Yes, with doc verification | Choosing default provider/cost tier |
 | 5 | Secrets leakage | Real `.env` in repo root (gitignored); auto-loaded on import | High | Low | Never `cat .env`; never commit; AGENTS.md already forbids printing | Yes (by abstaining) | — |
 | 6 | LLM post-processing reorders/miscounts segments after a refactor | Past bug fixed in commit `f6b9936`; AGENTS.md marks ordering as high severity | High (subtitles desync) | Low-Medium | Keep count/order/timestamp invariants; run all four `llm_*` tests | Yes | — |
 | 7 | Doc quadruplication drifts (README ×2, TUNING_GUIDE ×2) | 4 parallel files must stay in sync per Documentation Sync rules | Low-Medium (user confusion) | High | Always edit all four together; grep for the option name across docs | Yes | — |

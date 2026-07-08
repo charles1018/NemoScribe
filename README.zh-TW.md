@@ -282,20 +282,22 @@ uv add nemo_text_processing
 使用 LLM 修正轉錄錯誤（人名、專有名詞）：
 
 ```bash
-# 使用 OpenAI GPT-4o-mini（推薦：最佳性價比，約 $0.06/集）
-uv run nemoscribe video_path=video.mp4 \
-  vad.enabled=true \
-  llm_postprocess.enabled=true \
-  llm_postprocess.provider=openai \
-  llm_postprocess.model=gpt-4o-mini
-
-# 使用 Anthropic Claude 3.5 Sonnet（更高品質，約 $0.24/集）
+# 使用 Anthropic Claude Sonnet 5（預設 provider；品質與速度平衡）
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   llm_postprocess.enabled=true \
   llm_postprocess.provider=anthropic \
-  llm_postprocess.model=claude-3-5-sonnet-20241022
+  llm_postprocess.model=claude-sonnet-5
+
+# 使用 OpenAI GPT-5.4 mini（OpenAI 的低成本選項）
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=openai \
+  llm_postprocess.model=gpt-5.4-mini
 ```
+
+提供商價格會變動，實際成本也取決於字幕段落數。大量批次處理前，請先查看官方價格頁。
 
 **修正範例：**
 - 人名：`"Alias of us"` → `"Kylie Estevez"`、`"Herman"` → `"Herrmann"`
@@ -394,7 +396,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 |------|--------|------|
 | `enabled` | false | 啟用 LLM 字幕修正 |
 | `provider` | "anthropic" | LLM 提供商："anthropic" 或 "openai" |
-| `model` | "claude-3-5-sonnet-20241022" | 模型名稱（依提供商而異）|
+| `model` | "claude-sonnet-5" | 模型名稱（依提供商而異）|
 | `api_key` | None | API 金鑰（None = 從環境變數讀取）|
 | `batch_size` | 20 | 每次 LLM 請求的字幕段落數 |
 | `max_retries` | 3 | 每批次最大驗證/重試次數 |

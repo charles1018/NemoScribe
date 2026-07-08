@@ -23,7 +23,7 @@
 """
 LLM-based post-processing for NemoScribe subtitles.
 
-This module uses Large Language Models (Claude, GPT-4) to fix transcription errors
+This module uses Large Language Models (Claude, OpenAI) to fix transcription errors
 that cannot be solved at the ASR level, including:
 - Character names and proper nouns
 - Semantic errors and context-dependent mistakes
@@ -92,13 +92,13 @@ class LLMPostProcessConfig:
     # Master switch - disabled by default
     enabled: bool = False
 
-    # LLM provider: "anthropic" (Claude), "openai" (GPT-4)
+    # LLM provider: "anthropic" (Claude), "openai" (OpenAI)
     provider: str = "anthropic"
 
     # Model to use
-    # Anthropic: claude-3-5-sonnet-20241022 (recommended), claude-3-opus-20240229
-    # OpenAI: gpt-4o (recommended), gpt-4-turbo, gpt-4o-mini
-    model: str = "claude-3-5-sonnet-20241022"
+    # Anthropic: claude-sonnet-5 (default), claude-haiku-4-5
+    # OpenAI: gpt-5.4-mini (cost-efficient), gpt-5.4
+    model: str = "claude-sonnet-5"
 
     # API key (None = read from environment variable)
     # For Anthropic: ANTHROPIC_API_KEY

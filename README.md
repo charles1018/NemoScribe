@@ -282,20 +282,22 @@ uv add nemo_text_processing
 Fix transcription errors (character names, proper nouns) using an LLM:
 
 ```bash
-# Using OpenAI GPT-4o-mini (recommended: best cost/quality ratio, ~$0.06/episode)
-uv run nemoscribe video_path=video.mp4 \
-  vad.enabled=true \
-  llm_postprocess.enabled=true \
-  llm_postprocess.provider=openai \
-  llm_postprocess.model=gpt-4o-mini
-
-# Using Anthropic Claude 3.5 Sonnet (higher quality, ~$0.24/episode)
+# Using Anthropic Claude Sonnet 5 (default provider; balanced quality and latency)
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   llm_postprocess.enabled=true \
   llm_postprocess.provider=anthropic \
-  llm_postprocess.model=claude-3-5-sonnet-20241022
+  llm_postprocess.model=claude-sonnet-5
+
+# Using OpenAI GPT-5.4 mini (cost-efficient OpenAI option)
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true \
+  llm_postprocess.provider=openai \
+  llm_postprocess.model=gpt-5.4-mini
 ```
+
+Provider pricing changes over time and actual cost depends on subtitle count. Check the official provider pricing pages before running large batches.
 
 **What it fixes:**
 - Character names: `"Alias of us"` → `"Kylie Estevez"`, `"Herman"` → `"Herrmann"`
@@ -394,7 +396,7 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 |--------|---------|-------------|
 | `enabled` | false | Enable LLM-based subtitle correction |
 | `provider` | "anthropic" | LLM provider: "anthropic" or "openai" |
-| `model` | "claude-3-5-sonnet-20241022" | Model name (provider-specific) |
+| `model` | "claude-sonnet-5" | Model name (provider-specific) |
 | `api_key` | None | API key (None = read from environment) |
 | `batch_size` | 20 | Segments per LLM request |
 | `max_retries` | 3 | Max validation/retry attempts per batch |
