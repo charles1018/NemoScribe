@@ -57,6 +57,9 @@ Thumbs.db
 evaluation_report.txt
 tmp_outputs/
 
+# Local agent/internal development notes
+FUTURE_AGENT_REPO_GUIDE.md
+
 # Model cache (large files)
 *.nemo
 *.ckpt
