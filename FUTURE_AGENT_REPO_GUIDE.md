@@ -18,13 +18,13 @@
 
 **What is risky or unclear**:
 - Some local-only documentation drift remains (`CLAUDE.md` still labels `--test full` as comprehensive unless manually corrected; the committed NeMo upgrade runbook was fixed on 2026-07-08 — see §3.1).
-- **No CI whatsoever** — all verification is manual/local, and full E2E verification requires a local GPU and local video files that agents may not have.
+- CI is currently lint-only; full tests and E2E verification remain manual/local because full dependency installation is GPU/CUDA-heavy.
 - LLM live-API behavior is only covered by fallback tests unless the maintainer explicitly runs a real paid-provider sample.
 
 **Top 3 priorities for future agents** (details in §5):
 1. **P0** — ✅ done 2026-07-08, commit `e3611c9`: fix the committed `--test full` documentation trap and remove the stray root `__init__.py`. Local `CLAUDE.md` wording still needs user-approved correction.
 2. **P1** — ✅ done 2026-07-08, pending commit: refresh LLM post-processing model defaults and cost documentation using official provider docs.
-3. **P1** — Establish minimal automated verification (at least a lint + config-test job), pending user decision on CI cost.
+3. **P1** — ✅ partially done 2026-07-08, pending commit: lint-only GitHub Actions workflow added. Full test CI remains a cost/dependency decision.
 
 **The single most important warning**: *Never* upgrade `nemo-toolkit`, `torch`, `transformers`, `huggingface_hub`, `onnx`, CUDA indexes, or `uv.lock` by editing version strings alone. Read `UPGRADE_NEMO.md` first and follow its full validation checklist. The dependency matrix is fragile and every pin exists for a documented reason.
 
@@ -186,13 +186,13 @@ Ordered. Each item is scoped for one agent session.
 - **Verify**: full test suite; if the user provides an API key, one real run of `llm_postprocess.enabled=true provider=anthropic` on a short SRT; otherwise state clearly that live-API behavior was not exercised.
 - **Risks**: choosing a wrong/hallucinated model ID. Mitigation: fetch provider docs, or ask the user which models they pay for. **Stop and ask**: if unsure which provider tier the user wants as default.
 
-### P1-2: Minimal CI (lint + CPU test suite) — *requires user decision*
-- **Problem**: No `.github/workflows/`. Nothing prevents a broken commit.
+### P1-2: Minimal CI (lint + CPU test suite) — lint-only ✅ done 2026-07-08, pending commit
+- **Problem**: No `.github/workflows/`. Nothing prevented a broken commit.
 - **Why it matters**: Every future agent currently re-runs verification manually; regressions reach `main` silently.
-- **Direction**: One GitHub Actions workflow: job 1 `ruff check .` (cheap, no deps); job 2 the 22-test suite. **Complication**: the suite imports torch+NeMo; installing the pinned cu130 torch in CI is multi-GB and the `[[tool.uv.index]]` forces the CUDA wheel. Options: (a) lint-only CI (trivially safe), (b) full-deps CI with cache (slow first runs, possibly needs a CPU-torch override such as `UV_TORCH_BACKEND` or an env-marker index tweak — must NOT change local GPU resolution), (c) restructure tests to separate NeMo-free tests (larger change, do not do uncommissioned).
-- **Files**: `.github/workflows/ci.yml`; possibly `pyproject.toml` (danger zone — see UPGRADE_NEMO policy).
-- **Verify**: workflow green on a branch push; local `uv sync` still resolves identically (`git diff uv.lock` empty for option (a)/(b)-without-pyproject-changes).
-- **Risks**: touching `pyproject.toml` indexes counts as NeMo-sensitive change → full UPGRADE_NEMO.md process. **Stop and ask**: before creating the workflow at all (CI minutes/cost/preference), and always before any `pyproject.toml` change.
+- **Direction**: `.github/workflows/lint.yml` now runs `uvx --from ruff==0.15.8 ruff check .` on push and pull requests. Full test CI is still deferred because the suite imports torch+NeMo; installing the pinned cu130 torch in CI is multi-GB and the `[[tool.uv.index]]` forces the CUDA wheel. Options for a future change: (a) full-deps CI with cache (slow first runs), (b) a CPU-torch override that must not change local GPU resolution, or (c) split NeMo-free tests.
+- **Files**: `.github/workflows/lint.yml`; no `pyproject.toml` or lockfile changes.
+- **Verify**: local `uvx --from ruff==0.15.8 ruff check .`; workflow should be checked after push.
+- **Risks**: touching `pyproject.toml` indexes counts as NeMo-sensitive change → full UPGRADE_NEMO.md process. **Stop and ask**: before adding full test CI or any `pyproject.toml` change.
 
 ### P2-1: Deduplicate SRT parsing in `scripts/`
 - **Problem**: `scripts/evaluate_benchmark.py:59` and `scripts/analyze_quality.py:42` re-implement SRT timestamp parsing and text normalization instead of importing from `nemoscribe.srt` (the other two scripts do it right).

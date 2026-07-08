@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated the default LLM post-processing model from `claude-3-5-sonnet-20241022` to `claude-sonnet-5`, and refreshed OpenAI examples to use `gpt-5.4-mini`
 
+### Added
+
+- Added a lint-only GitHub Actions workflow that runs `ruff check .` via `uvx`
+
 ### Documentation
 
 - Documented a known model limitation of `parakeet-tdt-0.6b-v2`: repeated words and false starts (disfluencies) may be dropped; use `parakeet-tdt-1.1b` when verbatim disfluencies matter
