@@ -206,8 +206,9 @@ Ordered. Each item is scoped for one agent session.
 - **Verify**: `--test llm_parsing`, `--test llm_validation`, `--test llm_fallback`, `--test llm_validation_fallback`, then full suite.
 - **Risks**: low; pure refactor with test coverage. **Stop and ask**: no.
 
-### P2-3: NeMo 2.8.x upgrade (when released on PyPI)
+### P2-3: NeMo 2.8.x upgrade (when released on PyPI) — checked 2026-07-08, not available
 - **Problem**: Pinned `<2.8`; 2.8 brings a relevant perf fix (forced decoder reinstantiation with `timestamps=True`, upstream #15298). Compatibility pre-analysis (2026-04-04, in local CLAUDE.md) found the used API surface stable.
+- **Latest check**: `uvx --from pip pip index versions nemo-toolkit` reported latest PyPI release `2.7.3`; no `2.8.x` release was available on 2026-07-08. `nemo-toolkit-asr` is not an independent PyPI package.
 - **Direction**: Follow `UPGRADE_NEMO.md` **to the letter** (mode decision, `uv lock`, import sanity block, focused tests, full suite, real GPU smoke test). Update `<2.8` → `<2.9`, re-check transformers constraint compatibility.
 - **Verify**: everything in UPGRADE_NEMO.md §Required Validation Steps; the real-transcription step needs the maintainer's GPU machine.
 - **Risks**: transitive churn (transformers/huggingface_hub conflicts are the known failure mode). **Stop and ask**: before merging if any "Escalate before merging" condition in UPGRADE_NEMO.md triggers; also confirm 2.8 is actually on PyPI first.
