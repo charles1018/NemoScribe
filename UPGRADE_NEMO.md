@@ -270,3 +270,44 @@ When Codex CLI or Claude Code performs this upgrade, it should:
 7. Update README / CLAUDE docs so they match the new environment contract.
 
 Do not submit an upgrade that only changes version strings without re-locking and validating behavior.
+
+## Reference Notes
+
+### huggingface-hub 1.0 Breaking Changes
+
+Key changes that affect this project:
+- HTTP backend: `requests` → `httpx`
+- CLI: `huggingface-cli` → `hf`
+- Removed: TensorFlow support, `hf_transfer`
+- Error handling: `requests.HTTPError` → `httpx.HTTPError`
+
+**Wait for**: transformers 5.0 release (will support huggingface-hub 1.0+)
+
+**References**:
+- [huggingface-hub v1.0 Migration Guide](https://huggingface.co/docs/huggingface_hub/v1.1.0/concepts/migration)
+- [huggingface-hub v1.0 Release Notes](https://github.com/huggingface/huggingface_hub/releases/tag/v1.0.0)
+
+### NeMo 2.8.0 Compatibility Analysis (2026-04-04)
+
+NeMo 2.8.0 is not yet released on PyPI (source available at `~/dev/tools/claude/NeMo`).
+Our API surface is **fully compatible** with 2.8.0 — no breaking changes to imports we use.
+
+**Our NeMo API surface (all stable in 2.8.0):**
+- `nemo.collections.asr.models.ASRModel` — model loading, `from_pretrained()`, `restore_from()`, `transcribe()`
+- `nemo.collections.asr.models.EncDecClassificationModel` — VAD model (now inherits from `EncDecSpeakerLabelModel`)
+- `nemo.collections.asr.parts.submodules.rnnt_decoding.RNNTDecodingConfig` — decoding config
+- `nemo.collections.asr.parts.submodules.ctc_decoding.CTCDecodingConfig` — CTC decoding config
+- `nemo.collections.asr.parts.utils.rnnt_utils.Hypothesis` — transcription result type
+- `nemo.collections.asr.parts.utils.vad_utils.{init_frame_vad_model, generate_vad_segment_table_per_tensor}`
+- `nemo.collections.asr.parts.utils.transcribe_utils.{get_inference_device, get_inference_dtype}`
+
+**Key NeMo 2.8.0 changes (NOT affecting us):**
+- Removed: k2 aligner, quartnet, msdd, slu models — we don't use these
+- Added: ASR-EOU models — for streaming, not relevant for offline transcription
+- Removed: torchaudio dependency — we use librosa directly
+- Removed: deprecated NLP/TTS/other collections — ASR collection unchanged
+
+**Beneficial fix in 2.8.0 (available after upgrade):**
+- Fix forced decoder reinstantiation with `timestamps=True` (#15298) — performance improvement for chunked transcription
+
+**When 2.8.0 is released:** Update `pyproject.toml` constraint from `<2.8` to `<2.9`
