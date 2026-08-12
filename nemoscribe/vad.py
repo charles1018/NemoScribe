@@ -60,7 +60,16 @@ def load_vad_model(
 
     Returns:
         Loaded VAD model (NeMo EncDecClassificationModel)
+
+    Raises:
+        ValueError: If a Lightning .ckpt path is provided
     """
+    if model_name.lower().endswith(".ckpt"):
+        raise ValueError(
+            "VAD Lightning .ckpt checkpoints are not supported. "
+            "Use a trusted local .nemo model or a NeMo registry model name."
+        )
+
     logging.info(f"Loading VAD model: {model_name}")
     vad_model = init_frame_vad_model(model_name)
     vad_model = vad_model.to(device)

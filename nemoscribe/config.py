@@ -105,7 +105,7 @@ class VADConfig:
     # Master switch - disabled by default for backward compatibility
     enabled: bool = False
 
-    # VAD model name (NGC pretrained or local .nemo path)
+    # VAD model name (NeMo registry or trusted local .nemo path; .ckpt is rejected)
     # Options: "vad_multilingual_frame_marblenet" (recommended), "vad_multilingual_marblenet"
     model: str = "vad_multilingual_frame_marblenet"
 

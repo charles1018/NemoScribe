@@ -7,10 +7,10 @@
 **快速、本機執行、GPU 加速的自動語音轉文字，支援字詞級時間戳記。**<br>
 **免費、離線，無需仰賴雲端字幕服務。**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CUDA](https://img.shields.io/badge/CUDA-13.0-green.svg)](https://developer.nvidia.com/cuda-toolkit)
-[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NVIDIA%20NeMo-76b900.svg)](https://github.com/NVIDIA/NeMo)
+[![CUDA](https://img.shields.io/badge/CUDA-13.2-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NeMo%20Speech%203.0-76b900.svg)](https://github.com/NVIDIA-NeMo/Speech)
 [![Model](https://img.shields.io/badge/model-Parakeet--TDT-orange.svg)](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)
 [![GitHub stars](https://img.shields.io/github/stars/charles1018/NemoScribe?style=social)](https://github.com/charles1018/NemoScribe)
 
@@ -22,7 +22,7 @@
 
 ---
 
-**NemoScribe** 是一個命令列**語音轉文字字幕產生器**，能將影片檔案（MP4、MKV、AVI、MOV、WebM）轉換為時間精確的 **SRT 字幕**——完全在你自己的機器上執行。基於 [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) ASR 框架建構，預設使用 [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) 模型，提供最先進的英文**自動語音辨識（ASR）**與字詞級時間戳記，並透過分段推論支援長達 3 小時的音訊。
+**NemoScribe** 是一個命令列**語音轉文字字幕產生器**，能將影片檔案（MP4、MKV、AVI、MOV、WebM）轉換為時間精確的 **SRT 字幕**——完全在你自己的機器上執行。基於 [NVIDIA NeMo Speech](https://github.com/NVIDIA-NeMo/Speech) ASR 框架建構，預設使用 [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) 模型，提供最先進的英文**自動語音辨識（ASR）**與字詞級時間戳記，並透過分段推論支援長達 3 小時的音訊。
 
 ```
 video.mp4 ─► FFmpeg ─► VAD 語音偵測 ─► NeMo ASR (Parakeet-TDT) ─► ITN / LLM 修正 ─► video.srt
@@ -73,9 +73,9 @@ video.mp4 ─► FFmpeg ─► VAD 語音偵測 ─► NeMo ASR (Parakeet-TDT) �
 | 需求 | 說明 |
 |------|------|
 | **作業系統** | Windows 10/11、Linux |
-| **Python** | 3.10+（建議使用 3.12，避免 3.13）|
+| **Python** | 3.12+（本專案以 3.12 為驗證版本）|
 | **套件管理器** | [uv](https://docs.astral.sh/uv/)（建議）|
-| **CUDA Toolkit** | 預設 cu130（13.0）。PyTorch 亦支援 12.6/12.8。|
+| **CUDA Toolkit** | 預設 cu132（13.2）。PyTorch 2.13 亦提供 cu126/cu130 wheels。|
 | **FFmpeg** | 音訊擷取必備 |
 | **硬體** | NVIDIA GPU 搭配 CUDA（建議）|
 
@@ -111,21 +111,21 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
-目前 lockfile 會將 NeMo ASR 解到 `nemo-toolkit[asr]` 2.7.3，並使用 PyTorch 2.11 CUDA 13.0 wheels。版本約束仍維持在 NeMo 2.7.x 主線（`>=2.7.3,<2.8`），以保留 patch 版相容性。
+目前 lockfile 會將 NeMo ASR 解到穩定版 `nemo-toolkit[asr]` 3.0 主線，並使用 PyTorch 2.13 CUDA 13.2 wheels。NeMo 敏感相依套件鎖在已驗證的 Transformers 5.x、NumPy 2.x 與 ONNX 1.22 主線；Hydra Core 1.3.2 與 OmegaConf 2.3.0 則因 NeMo Speech 3.0 上游限制而維持精確版本。
 
 ### 4. 設定 CUDA（強烈建議）
 
-預設情況下，`uv sync` 可能會安裝僅支援 CPU 的 PyTorch。**強烈建議啟用 GPU 加速**以獲得合理的轉錄速度。本專案已預先設定使用 CUDA 13.0，GPU 使用者只需執行 `uv sync` 即可。
+**強烈建議啟用 GPU 加速**以獲得合理的轉錄速度。本專案已預先設定在支援的 Linux/Windows 系統安裝 CUDA 13.2 PyTorch wheel，GPU 使用者只需執行 `uv sync --python 3.12`。
 
-> **注意**：PyTorch 官方支援 CUDA 12.6、12.8 和 13.0。詳情請參考 [PyTorch Get Started](https://pytorch.org/get-started/locally/)。
+> **注意**：PyTorch 2.13 提供 CUDA 12.6、13.0 與 13.2 wheels；CUDA 13.2 與目前 NeMo Speech 3.0 的 CUDA 主線一致。最新矩陣請參考 [PyTorch Get Started](https://pytorch.org/get-started/locally/)。
 
 如需使用不同的 CUDA 版本，請修改 `pyproject.toml`：
 
-**CUDA 13.0（預設，建議）：**
+**CUDA 13.2（預設，建議）：**
 ```toml
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu130"
+url = "https://download.pytorch.org/whl/cu132"
 explicit = true
 
 [tool.uv.sources]
@@ -134,11 +134,11 @@ torchvision = { index = "pytorch" }
 torchaudio = { index = "pytorch" }
 ```
 
-**CUDA 12.8：**
+**CUDA 13.0：**
 ```toml
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu128"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 ```
 
@@ -244,6 +244,8 @@ uv run nemoscribe video_path=video.mp4 \
 
 2026-05-05 以 Chicago Fire S12E01 + NeMo 2.7.3 實測，`compute_dtype=float32` 與 `decoding.rnnt_fused_batch_size=0` 仍是在 RTX 3070 Laptop GPU 上穩定的 CUDA 設定。這個樣本中 no-VAD 的內容略完整於 VAD，因此不確定時建議使用 `ab_test.vad=true`，不必手動跑兩次指令。
 
+2026-08-12 升級至 NeMo Speech 3.0 後，已在同級 GPU 重新驗證預設路徑，以及 `float32` + VAD + `rnnt_fused_batch_size=0` 高風險路徑；兩者在 smoke sample 都產生內容相同且時間單調遞增的字幕。
+
 ### VAD A/B 測試
 
 ```bash
@@ -268,7 +270,7 @@ uv run nemoscribe video_path=video.mp4 \
   postprocessing.itn_input_case=cased
 
 # 安裝 ITN 相依套件
-uv add nemo_text_processing
+uv sync --extra itn
 ```
 
 **ITN 範例：**
@@ -356,7 +358,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | 選項 | 預設值 | 說明 |
 |------|--------|------|
 | `enabled` | false | 啟用語音活動偵測 |
-| `model` | `vad_multilingual_frame_marblenet` | VAD 模型名稱 |
+| `model` | `vad_multilingual_frame_marblenet` | NeMo registry 模型名稱或可信任的本機 `.nemo` 路徑（拒絕 `.ckpt`）|
 | `onset` | 0.3 | 語音偵測起始門檻值 (0-1) |
 | `offset` | 0.3 | 語音偵測結束門檻值 (0-1) |
 | `pad_onset` | 0.2 | 語音片段前 padding（秒）|
@@ -622,7 +624,7 @@ NemoScribe 使用 NVIDIA NeMo 的 Parakeet-TDT 模型，在 HuggingFace Open ASR
 
 NemoScribe 建構於以下開源專案之上：
 
-- **[NVIDIA NeMo](https://github.com/NVIDIA/NeMo)** - 對話式 AI 的神經模組工具包（Apache 2.0 授權）
+- **[NVIDIA NeMo Speech](https://github.com/NVIDIA-NeMo/Speech)** - ASR、TTS 與音訊處理工具包（Apache 2.0 授權）
 - **[Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)** - NVIDIA 最先進的 ASR 模型（CC-BY-4.0 授權）
 
 感謝 NVIDIA 將這些優秀的工具和模型提供給社群。
@@ -666,8 +668,8 @@ model.change_subsampling_conv_chunking_factor(1)  # 1 = 自動選擇
 
 ### 文件
 
-- [NeMo ASR 文件](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/intro.html)
-- [NeMo GitHub 儲存庫](https://github.com/NVIDIA/NeMo)
+- [NeMo Speech 文件](https://docs.nvidia.com/nemo/speech/latest/)
+- [NeMo Speech GitHub 儲存庫](https://github.com/NVIDIA-NeMo/Speech)
 - [Parakeet 模型卡](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/parakeet-tdt-0.6b-v2)
 
 ---

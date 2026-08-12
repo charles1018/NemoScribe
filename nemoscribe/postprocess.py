@@ -88,7 +88,7 @@ def get_itn_normalizer(
     except ImportError:
         logging.warning(
             "nemo_text_processing not installed. ITN disabled. "
-            "Install with: pip install nemo_text_processing"
+            "Install with: uv sync --extra itn"
         )
         _ITN_NORMALIZER_CACHE[cache_key] = None
         return None

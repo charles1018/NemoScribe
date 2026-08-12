@@ -158,8 +158,11 @@ def test_baseline_config() -> TestResult:
 
 
 def test_vad_config() -> TestResult:
-    """Test VAD configuration dataclass."""
+    """Test VAD configuration and local checkpoint safety guard."""
+    import torch
+
     from nemoscribe import VADConfig
+    from nemoscribe.vad import load_vad_model
 
     try:
         # Test default values
@@ -179,10 +182,16 @@ def test_vad_config() -> TestResult:
         assert custom_cfg.enabled
         assert custom_cfg.onset == 0.5
 
+        try:
+            load_vad_model("untrusted.ckpt", torch.device("cpu"))
+            raise AssertionError("Lightning .ckpt VAD models must be rejected")
+        except ValueError as exc:
+            assert ".ckpt checkpoints are not supported" in str(exc)
+
         return TestResult(
             name="vad_config",
             passed=True,
-            message="VADConfig works correctly",
+            message="VADConfig and checkpoint safety guard work correctly",
         )
 
     except AssertionError as e:
@@ -321,13 +330,36 @@ def test_decoding_config() -> TestResult:
 
 
 def test_nemo_api_compatibility() -> TestResult:
-    """Test compatibility shims against the installed NeMo decoding config classes."""
+    """Test NemoScribe's complete import surface and decoding compatibility shims."""
+    from nemo.collections.asr.metrics.wer import word_error_rate_detail
+    from nemo.collections.asr.models import ASRModel, EncDecClassificationModel
     from nemo.collections.asr.parts.submodules.ctc_decoding import CTCDecodingConfig
     from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
+    from nemo.collections.asr.parts.utils.rnnt_utils import Hypothesis
+    from nemo.collections.asr.parts.utils.transcribe_utils import (
+        get_inference_device,
+        get_inference_dtype,
+    )
+    from nemo.collections.asr.parts.utils.vad_utils import (
+        generate_vad_segment_table_per_tensor,
+        init_frame_vad_model,
+    )
 
     from nemoscribe.transcriber import _add_decoding_kwarg
 
     try:
+        import_surface = (
+            ASRModel,
+            EncDecClassificationModel,
+            Hypothesis,
+            get_inference_device,
+            get_inference_dtype,
+            init_frame_vad_model,
+            generate_vad_segment_table_per_tensor,
+            word_error_rate_detail,
+        )
+        assert all(symbol is not None for symbol in import_surface), "NeMo API import surface is incomplete"
+
         rnnt_kwargs = {}
         _add_decoding_kwarg(
             rnnt_kwargs,
@@ -357,7 +389,7 @@ def test_nemo_api_compatibility() -> TestResult:
         return TestResult(
             name="nemo_api_compatibility",
             passed=True,
-            message="NeMo decoding config aliases are compatible with installed RNNT/CTC classes",
+            message="NeMo import surface and RNNT/CTC decoding config aliases are compatible",
         )
 
     except AssertionError as e:

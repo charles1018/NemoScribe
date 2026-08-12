@@ -43,8 +43,9 @@ def _get_hypothesis_timestamps(hypothesis: Hypothesis) -> Dict[str, Any]:
     """
     Return timestamp data as a dict across NeMo Hypothesis variants.
 
-    Older code and some models expose timestep, while NeMo 2.7.x Hypothesis uses
-    timestamp. The default timestamp value can be a list, so guard dict access.
+    Older code and some models expose timestep, while current Hypothesis
+    variants use timestamp. The default value can be a list, so guard dict
+    access.
     """
     for attr_name in ("timestep", "timestamp"):
         timestamps = getattr(hypothesis, attr_name, None)

@@ -115,6 +115,8 @@ This VAD parameter set addresses the following issues:
 
 > **Chicago Fire validation (2026-05-05)**: Tested on `Chicago Fire S12E01` with an RTX 3070 Laptop GPU and NeMo 2.7.3, the stable and reproducible CUDA combination is `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`. In this sample, the no-VAD version had slightly more segments and words with a slightly lower rough WER; the VAD version still kept long segments under control and reduced background-audio risk. We therefore recommend most users start with `ab_test.vad=true`.
 
+> **NeMo Speech 3.0 smoke validation (2026-08-12)**: The default path and the `float32` + VAD + `rnnt_fused_batch_size=0` path both completed on an RTX 3070 Laptop GPU with PyTorch 2.13/CUDA 13.2. Both outputs had identical text and monotonic timestamps.
+
 > **Note**: `decoding.rnnt_timestamp_type="all"` and `decoding.segment_separators=[".", "?", "!"]` are defaults and need no manual setting. In the Chicago Fire test, `segment_gap_threshold=20` further split overly long segments while preserving punctuation-based splitting.
 
 ### Parameter Details
@@ -215,6 +217,7 @@ Whatever the scenario, these parameters are recommended as a baseline:
 | :--- | :--- | :--- |
 | `audio.max_chunk_duration` | `60` | Forces a split every 60 seconds to avoid model fatigue. |
 | `audio.smart_segmentation` | `true` | Splits intelligently at silence. |
+| `vad.model` | `vad_multilingual_frame_marblenet` | Use a NeMo registry model or trusted local `.nemo` archive. Lightning `.ckpt` paths are rejected. |
 | `decoding.rnnt_timestamp_type` | `"all"` | Outputs all timestamp types (default). Works best with segment_separators. |
 | `decoding.segment_separators` | `[".", "?", "!"]` | Splits segments at punctuation (default). **Verified**: reduces long segments from 46.96s to 11.28s. Set to an empty list to disable. |
 | `decoding.segment_gap_threshold` | `None` | Gap-based segment splitting (unit: frames, must be a positive integer). Forces a new segment when the gap between two consecutive words exceeds the threshold; when `segment_separators` is also enabled, NemoScribe keeps punctuation splits and applies gap splits on top. |

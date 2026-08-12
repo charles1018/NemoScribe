@@ -4,26 +4,26 @@ version = "0.5.0"
 description = "Convert video files to SRT subtitles using NVIDIA NeMo ASR models with accurate timestamps"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-    "torch>=2.11,<2.12",
-    "nemo_toolkit[asr]>=2.7.3,<2.8",
-    "hydra-core>=1.3.2",
-    "omegaconf>=2.3.0",
-    "onnx<1.18",
+    "torch>=2.13,<2.14",
+    "nemo_toolkit[asr]>=3.0,<3.1",
+    "hydra-core==1.3.2",
+    "omegaconf==2.3.0",
+    "onnx>=1.22,<1.23",
 ]
 
 [project.optional-dependencies]
 # ITN (Inverse Text Normalization) for converting spoken forms to written forms
 # e.g., "twenty five dollars" -> "$25"
 # Note: pynini dependency can be tricky to install on some systems
-itn = ["nemo_text_processing>=1.1.0"]
+itn = ["nemo_text_processing>=1.2,<2"]
 # Benchmark evaluation tools
-benchmark = ["jiwer>=3.1,<4"]
+benchmark = ["jiwer>=4,<5"]
 # LLM post-processing for fixing transcription errors
-llm = ["anthropic>=0.88.0,<1", "openai>=2.30.0,<3", "python-dotenv>=1.2.2,<2", "json-repair>=0.58.7,<1"]
+llm = ["anthropic>=0.121,<1", "openai>=3,<4", "python-dotenv>=1.2.2,<2", "json-repair>=0.63,<1"]
 # All optional features
-all = ["nemo_text_processing>=1.1.0", "jiwer>=3.1,<4", "anthropic>=0.88.0,<1", "openai>=2.30.0,<3", "python-dotenv>=1.2.2,<2", "json-repair>=0.58.7,<1"]
+all = ["nemo_text_processing>=1.2,<2", "jiwer>=4,<5", "anthropic>=0.121,<1", "openai>=3,<4", "python-dotenv>=1.2.2,<2", "json-repair>=0.63,<1"]
 
 
 [project.scripts]
@@ -34,18 +34,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = []
+dev = ["ruff==0.16.2"]
 
-# Pin transitive dependencies for NeMo compatibility (see CLAUDE.md)
+# Constrain NeMo-sensitive dependencies to the validated major/minor lines (see UPGRADE_NEMO.md)
 [tool.uv]
 constraint-dependencies = [
-    "transformers>=4.57,<4.58",
-    "numpy<2",
+    "transformers>=5.15,<6",
+    "numpy>=2.5,<3",
 ]
 
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu130"
+url = "https://download.pytorch.org/whl/cu132"
 explicit = true
 
 [tool.uv.sources]
@@ -55,7 +55,7 @@ torchaudio = { index = "pytorch" }
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

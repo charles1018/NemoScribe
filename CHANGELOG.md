@@ -9,19 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgraded the runtime stack to NeMo Speech 3.0, PyTorch 2.13 with CUDA 13.2, Transformers 5.15, NumPy 2.5, and ONNX 1.22; the minimum supported Python version is now 3.12
+- Upgraded optional ITN, benchmark, and LLM dependencies to their latest stable lines, including `nemo-text-processing` 1.2, jiwer 4, OpenAI 3, Anthropic 0.121, and json-repair 0.63
 - Updated the default LLM post-processing model from `claude-3-5-sonnet-20241022` to `claude-sonnet-5`, and refreshed OpenAI examples to use `gpt-5.4-mini`
 - Reused the shared SRT timestamp parser in benchmark/quality scripts; the parser now accepts both comma and dot millisecond separators
 - Deduplicated the Anthropic/OpenAI LLM subtitle batch loop while preserving provider-specific client setup and fallback behavior
 
 ### Added
 
-- Added a lint-only GitHub Actions workflow that runs `ruff check .` via `uvx`
+- Added a GitHub Actions workflow that checks `uv.lock` and runs `ruff check .` via `uvx`; refreshed the action and Ruff versions
+
+### Security
+
+- Rejected local Lightning `.ckpt` VAD models before NeMo can route them through the vulnerable checkpoint loader described by CVE-2026-58659; use a NeMo registry model or trusted local `.nemo` archive
 
 ### Documentation
 
 - Documented a known model limitation of `parakeet-tdt-0.6b-v2`: repeated words and false starts (disfluencies) may be dropped; use `parakeet-tdt-1.1b` when verbatim disfluencies matter
 - Mentioned the free hosted API on build.nvidia.com as a no-GPU way to try the default model
 - GPU memory table: 8GB GPUs with `compute_dtype=float32` may OOM at the default `max_chunk_duration=300` on dialogue-dense content; recommend dropping to 120 (verified on Yellowstone S03E01, RTX 3070 8GB)
+- Updated installation and upgrade guidance for the NVIDIA-NeMo/Speech repository split, Python 3.12+, and the CUDA 13.2 package index
 
 ## [0.5.0] - 2026-06-11
 

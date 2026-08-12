@@ -324,8 +324,8 @@ def _transcribe_with_hypotheses(
     """
     Run NeMo transcribe while keeping timestamp behavior across minor API shifts.
 
-    NeMo 2.7.x accepts timestamps=True. If a later patch removes or renames that
-    keyword, retry with the decoding config's timestamp settings instead.
+    Current NeMo releases accept timestamps=True. If a later release removes or
+    renames that keyword, retry with the decoding config's timestamp settings.
     """
     try:
         return asr_model.transcribe(

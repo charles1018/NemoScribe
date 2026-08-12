@@ -127,8 +127,9 @@ Re-test:
 
 Before making any version changes, review:
 
-- `~/dev/tools/claude/NeMo/pyproject.toml`
-- `~/dev/tools/claude/NeMo/CLAUDE.md`
+- the target release's upstream `pyproject.toml` and `CLAUDE.md` (use a local
+  `~/dev/tools/claude/NeMo` or `Speech` checkout when present; otherwise clone
+  the exact official release tag to a temporary directory)
 - `pyproject.toml`
 - `uv.lock`
 - `README.md`
@@ -273,41 +274,49 @@ Do not submit an upgrade that only changes version strings without re-locking an
 
 ## Reference Notes
 
-### huggingface-hub 1.0 Breaking Changes
+### NeMo Speech 3.0 Compatibility Analysis (2026-08-12)
 
-Key changes that affect this project:
-- HTTP backend: `requests` → `httpx`
-- CLI: `huggingface-cli` → `hf`
-- Removed: TensorFlow support, `hf_transfer`
-- Error handling: `requests.HTTPError` → `httpx.HTTPError`
+NeMo Speech 3.0.0 is an official stable PyPI release. NemoScribe therefore uses
+**PyPI release tracking**, not a Git source. The release tag inspected during
+the upgrade was `v3.0.0` at commit
+`fd6a877539710e2b98f28c43272ff81312f83417`.
 
-**Wait for**: transformers 5.0 release (will support huggingface-hub 1.0+)
+The repository split moved the active speech collections to
+`NVIDIA-NeMo/Speech`. NeMo 3.0 retains every API in NemoScribe's integration
+surface, including RNNT/CTC decoding dataclasses, `Hypothesis`, ASR/VAD model
+loading, VAD utilities, inference device/dtype helpers, and WER metrics.
 
-**References**:
-- [huggingface-hub v1.0 Migration Guide](https://huggingface.co/docs/huggingface_hub/v1.1.0/concepts/migration)
-- [huggingface-hub v1.0 Release Notes](https://github.com/huggingface/huggingface_hub/releases/tag/v1.0.0)
+Validated local matrix:
 
-### NeMo 2.8.0 Compatibility Analysis (2026-04-04)
+- Python 3.12
+- `nemo-toolkit[asr]` 3.0.0
+- PyTorch 2.13.0 + CUDA 13.2
+- Transformers 5.15.0 + huggingface-hub 1.27.0
+- NumPy 2.5.2
+- ONNX 1.22.0
+- RTX 3070 Laptop GPU, driver 595.84
 
-NeMo 2.8.0 is not yet released on PyPI (source available at `~/dev/tools/claude/NeMo`).
-Our API surface is **fully compatible** with 2.8.0 — no breaking changes to imports we use.
+The upstream actively-tested baseline uses PyTorch 2.12 with CUDA 12.6/13.2,
+but its install contract supports user-selected PyTorch 2.7+. NemoScribe's
+newer PyTorch 2.13 line was accepted only after import checks, the full 22-test
+suite, and baseline plus VAD real-transcription smoke tests passed on CUDA.
 
-**Our NeMo API surface (all stable in 2.8.0):**
-- `nemo.collections.asr.models.ASRModel` — model loading, `from_pretrained()`, `restore_from()`, `transcribe()`
-- `nemo.collections.asr.models.EncDecClassificationModel` — VAD model (now inherits from `EncDecSpeakerLabelModel`)
-- `nemo.collections.asr.parts.submodules.rnnt_decoding.RNNTDecodingConfig` — decoding config
-- `nemo.collections.asr.parts.submodules.ctc_decoding.CTCDecodingConfig` — CTC decoding config
-- `nemo.collections.asr.parts.utils.rnnt_utils.Hypothesis` — transcription result type
-- `nemo.collections.asr.parts.utils.vad_utils.{init_frame_vad_model, generate_vad_segment_table_per_tensor}`
-- `nemo.collections.asr.parts.utils.transcribe_utils.{get_inference_device, get_inference_dtype}`
+Hydra Core 1.3.2 and OmegaConf 2.3.0 remain exact compatibility pins because
+NeMo Speech 3.0 caps those versions upstream. The Transformers 5 migration
+allows huggingface-hub 1.x; NumPy 2 and the current ONNX/ml-dtypes line are now
+validated instead of carrying the NeMo 2.x compatibility pins.
 
-**Key NeMo 2.8.0 changes (NOT affecting us):**
-- Removed: k2 aligner, quartnet, msdd, slu models — we don't use these
-- Added: ASR-EOU models — for streaming, not relevant for offline transcription
-- Removed: torchaudio dependency — we use librosa directly
-- Removed: deprecated NLP/TTS/other collections — ASR collection unchanged
+Known upstream security constraint as of 2026-08-12: NeMo Speech 3.0 requires
+`lightning<=2.4.0`, and released Lightning versions through 2.6.5 are affected
+by [CVE-2026-58659](https://github.com/advisories/GHSA-qqmf-gpg7-g8gw) when
+`LightningModule.load_from_checkpoint()` loads an attacker-controlled
+`_instantiator`. The upstream fix is merged but not yet in a stable release
+compatible with NeMo 3.0. ASR `.nemo` models use `ASRModel.restore_from()`, and
+NemoScribe explicitly rejects `.ckpt` VAD paths before NeMo's VAD helper can
+reach the affected Lightning API. Continue treating all accepted model archives
+as trusted input, and revisit the Lightning constraint when NeMo permits a
+stable patched release.
 
-**Beneficial fix in 2.8.0 (available after upgrade):**
-- Fix forced decoder reinstantiation with `timestamps=True` (#15298) — performance improvement for chunked transcription
-
-**When 2.8.0 is released:** Update `pyproject.toml` constraint from `<2.8` to `<2.9`
+Expected lockfile cleanup includes removal of legacy non-speech, deployment,
+Optuna, and `pyannote-*` packages. Do not re-add them unless a direct feature
+requires them.

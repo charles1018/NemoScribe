@@ -7,10 +7,10 @@
 **Fast, local, GPU-accelerated automatic transcription with word-level timestamps.**<br>
 **A free, offline alternative to cloud captioning services.**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CUDA](https://img.shields.io/badge/CUDA-13.0-green.svg)](https://developer.nvidia.com/cuda-toolkit)
-[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NVIDIA%20NeMo-76b900.svg)](https://github.com/NVIDIA/NeMo)
+[![CUDA](https://img.shields.io/badge/CUDA-13.2-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![NVIDIA NeMo](https://img.shields.io/badge/built%20on-NeMo%20Speech%203.0-76b900.svg)](https://github.com/NVIDIA-NeMo/Speech)
 [![Model](https://img.shields.io/badge/model-Parakeet--TDT-orange.svg)](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)
 [![GitHub stars](https://img.shields.io/github/stars/charles1018/NemoScribe?style=social)](https://github.com/charles1018/NemoScribe)
 
@@ -22,7 +22,7 @@
 
 ---
 
-**NemoScribe** is a command-line **speech-to-text subtitle generator** that converts video files (MP4, MKV, AVI, MOV, WebM) into accurately timed **SRT subtitles** — entirely on your own machine. Built on the [NVIDIA NeMo](https://github.com/NVIDIA/NeMo) ASR framework with [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) as the default model, it delivers state-of-the-art English **automatic speech recognition (ASR)** with word-level timestamps, and handles long audio (up to 3 hours) through chunked inference.
+**NemoScribe** is a command-line **speech-to-text subtitle generator** that converts video files (MP4, MKV, AVI, MOV, WebM) into accurately timed **SRT subtitles** — entirely on your own machine. Built on the [NVIDIA NeMo Speech](https://github.com/NVIDIA-NeMo/Speech) ASR framework with [Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) as the default model, it delivers state-of-the-art English **automatic speech recognition (ASR)** with word-level timestamps, and handles long audio (up to 3 hours) through chunked inference.
 
 ```
 video.mp4 ─► FFmpeg ─► VAD speech detection ─► NeMo ASR (Parakeet-TDT) ─► ITN / LLM correction ─► video.srt
@@ -73,9 +73,9 @@ video.mp4 ─► FFmpeg ─► VAD speech detection ─► NeMo ASR (Parakeet-TD
 | Requirement | Details |
 |-------------|---------|
 | **OS** | Windows 10/11, Linux |
-| **Python** | 3.10+ (3.12 recommended, avoid 3.13) |
+| **Python** | 3.12+ (3.12 is the project validation target) |
 | **Package Manager** | [uv](https://docs.astral.sh/uv/) (recommended) |
-| **CUDA Toolkit** | Default cu130 (13.0). PyTorch also supports 12.6/12.8. |
+| **CUDA Toolkit** | Default cu132 (13.2). PyTorch 2.13 also provides cu126/cu130 wheels. |
 | **FFmpeg** | Required for audio extraction |
 | **Hardware** | NVIDIA GPU with CUDA (recommended) |
 
@@ -111,21 +111,21 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
-The lockfile currently resolves NeMo ASR to `nemo-toolkit[asr]` 2.7.3 with PyTorch 2.11 CUDA 13.0 wheels. The version constraints stay on the NeMo 2.7.x line (`>=2.7.3,<2.8`) for patch-level compatibility.
+The lockfile resolves the stable `nemo-toolkit[asr]` 3.0 line with PyTorch 2.13 and CUDA 13.2 wheels. NeMo-sensitive dependencies are constrained to the validated Transformers 5.x, NumPy 2.x, and ONNX 1.22 lines; Hydra Core 1.3.2 and OmegaConf 2.3.0 remain exact because NeMo Speech 3.0 caps them upstream.
 
 ### 4. Configure CUDA (Strongly Recommended)
 
-By default, `uv sync` may install CPU-only PyTorch. **GPU acceleration is strongly recommended** for reasonable transcription speed. The project is pre-configured to use CUDA 13.0, so GPU users only need to run `uv sync`.
+**GPU acceleration is strongly recommended** for reasonable transcription speed. The project is pre-configured to install the CUDA 13.2 PyTorch wheel on supported Linux/Windows systems, so GPU users only need to run `uv sync --python 3.12`.
 
-> **Note**: PyTorch officially supports CUDA 12.6, 12.8, and 13.0. See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for details.
+> **Note**: PyTorch 2.13 publishes CUDA 12.6, 13.0, and 13.2 wheels. CUDA 13.2 matches the current NeMo Speech 3.0 CUDA line. See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for the current matrix.
 
 If you need a different CUDA version, modify `pyproject.toml`:
 
-**CUDA 13.0 (Default, Recommended):**
+**CUDA 13.2 (Default, Recommended):**
 ```toml
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu130"
+url = "https://download.pytorch.org/whl/cu132"
 explicit = true
 
 [tool.uv.sources]
@@ -134,11 +134,11 @@ torchvision = { index = "pytorch" }
 torchaudio = { index = "pytorch" }
 ```
 
-**CUDA 12.8:**
+**CUDA 13.0:**
 ```toml
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu128"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 ```
 
@@ -244,6 +244,8 @@ uv run nemoscribe video_path=video.mp4 \
 
 Chicago Fire S12E01 validation on 2026-05-05 with NeMo 2.7.3 showed that `compute_dtype=float32` and `decoding.rnnt_fused_batch_size=0` are still the stable CUDA settings on an RTX 3070 Laptop GPU. In that sample, no-VAD produced slightly more complete output than VAD, so use `ab_test.vad=true` when you want the safer choice without manually running two commands.
 
+The 2026-08-12 NeMo Speech 3.0 upgrade revalidated both the default and the higher-risk `float32` + VAD + `rnnt_fused_batch_size=0` paths on the same GPU class. Both produced identical, monotonic subtitles for the smoke sample.
+
 ### VAD A/B Test
 
 ```bash
@@ -268,7 +270,7 @@ uv run nemoscribe video_path=video.mp4 \
   postprocessing.itn_input_case=cased
 
 # Install ITN dependency
-uv add nemo_text_processing
+uv sync --extra itn
 ```
 
 **ITN Examples:**
@@ -356,7 +358,7 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enabled` | false | Enable Voice Activity Detection |
-| `model` | `vad_multilingual_frame_marblenet` | VAD model name |
+| `model` | `vad_multilingual_frame_marblenet` | NeMo registry model name or trusted local `.nemo` path (`.ckpt` is rejected) |
 | `onset` | 0.3 | Speech detection onset threshold (0-1) |
 | `offset` | 0.3 | Speech detection offset threshold (0-1) |
 | `pad_onset` | 0.2 | Padding before speech segments (seconds) |
@@ -622,7 +624,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 NemoScribe is built upon the following open-source projects:
 
-- **[NVIDIA NeMo](https://github.com/NVIDIA/NeMo)** - Neural Modules toolkit for conversational AI (Apache 2.0 License)
+- **[NVIDIA NeMo Speech](https://github.com/NVIDIA-NeMo/Speech)** - Speech AI toolkit for ASR, TTS, and audio processing (Apache 2.0 License)
 - **[Parakeet-TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)** - NVIDIA's state-of-the-art ASR model (CC-BY-4.0 License)
 
 We thank NVIDIA for making these excellent tools and models available to the community.
@@ -666,8 +668,8 @@ model.change_subsampling_conv_chunking_factor(1)  # 1 = auto select
 
 ### Documentation
 
-- [NeMo ASR Documentation](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/intro.html)
-- [NeMo GitHub Repository](https://github.com/NVIDIA/NeMo)
+- [NeMo Speech Documentation](https://docs.nvidia.com/nemo/speech/latest/)
+- [NeMo Speech GitHub Repository](https://github.com/NVIDIA-NeMo/Speech)
 - [Parakeet Model Card](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/parakeet-tdt-0.6b-v2)
 
 ---

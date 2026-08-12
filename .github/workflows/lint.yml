@@ -4,16 +4,22 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   ruff:
     name: Ruff
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v9
+
+      - name: Check lockfile
+        run: uv lock --check
 
       - name: Run ruff
-        run: uvx --from ruff==0.15.8 ruff check .
+        run: uvx --from ruff==0.16.2 ruff check .

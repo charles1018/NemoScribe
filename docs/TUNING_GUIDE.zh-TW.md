@@ -115,6 +115,8 @@ uv run nemoscribe \
 
 > **Chicago Fire 實測（2026-05-05）**：以 `Chicago Fire S12E01`、RTX 3070 Laptop GPU、NeMo 2.7.3 實跑，穩定可重現的 CUDA 組合為 `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`。在這個樣本中，no-VAD 版本的字幕段數與詞數略高，粗略 WER 也略低；VAD 版本則仍能保持長段落控制與降低背景音風險。因此建議一般使用者先跑 `ab_test.vad=true`。
 
+> **NeMo Speech 3.0 smoke 驗證（2026-08-12）**：在 RTX 3070 Laptop GPU 搭配 PyTorch 2.13/CUDA 13.2，預設路徑與 `float32` + VAD + `rnnt_fused_batch_size=0` 路徑皆能完成；兩者輸出文字相同，時間戳記也維持單調遞增。
+
 > **注意**：`decoding.rnnt_timestamp_type="all"` 和 `decoding.segment_separators=[".", "?", "!"]` 為預設值，無需手動設定。Chicago Fire 實測中，`segment_gap_threshold=20` 會在保留標點分段的前提下，進一步補切過長段落。
 
 ### 參數詳解
@@ -215,6 +217,7 @@ uv run nemoscribe \
 | :--- | :--- | :--- |
 | `audio.max_chunk_duration` | `60` | 強制每 60 秒切一段，避免模型疲勞。 |
 | `audio.smart_segmentation` | `true` | 聰明地在靜音處切分。 |
+| `vad.model` | `vad_multilingual_frame_marblenet` | 使用 NeMo registry 模型或可信任的本機 `.nemo` 封存檔；系統會拒絕 Lightning `.ckpt` 路徑。 |
 | `decoding.rnnt_timestamp_type` | `"all"` | 輸出所有時間戳記類型（預設值）。配合 segment_separators 使用效果最佳。 |
 | `decoding.segment_separators` | `[".", "?", "!"]` | 在標點處分割段落（預設值）。**已驗證**：可將長段落從 46.96s 降至 11.28s。設為空清單可停用。 |
 | `decoding.segment_gap_threshold` | `None` | 基於詞間隔的段落分割（單位：幀，需為正整數）。當兩個連續詞之間的間隔超過此閾值時，強制分割為新段落；若同時啟用 `segment_separators`，NemoScribe 會保留標點分段並額外套用 gap 分段。 |
