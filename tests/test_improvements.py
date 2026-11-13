@@ -266,10 +266,53 @@ def test_decoding_config() -> TestResult:
     from nemoscribe.srt import validate_segment_gap_threshold
 
     try:
+        from nemo.collections.asr.parts.submodules.rnnt_decoding import RNNTDecodingConfig
+
+        from nemoscribe.cli import parse_args
+        from nemoscribe.config import VideoToSRTConfig
+        from nemoscribe.transcriber import _set_cuda_graph_decoder, setup_decoding_strategy
+
         cfg = DecodingConfig()
 
-        # CUDA graphs should be enabled by default
-        assert cfg.rnnt_fused_batch_size == -1, "CUDA graphs should be enabled by default"
+        # Joint fused batch step stays disabled for inference (<= 0)
+        assert cfg.rnnt_fused_batch_size == -1, "rnnt_fused_batch_size should default to -1"
+
+        # The CUDA graph decoder is off by default (it can abort the process on some GPUs)
+        assert cfg.use_cuda_graph_decoder is False, "CUDA graph decoder should be disabled by default"
+
+        # NeMo enables it by default, so NemoScribe must override the flag explicitly
+        nemo_cfg = RNNTDecodingConfig()
+        assert nemo_cfg.greedy.use_cuda_graph_decoder is True, "NeMo default changed; re-check the override"
+        assert _set_cuda_graph_decoder(nemo_cfg, False) == "disabled"
+        assert nemo_cfg.greedy.use_cuda_graph_decoder is False
+        assert _set_cuda_graph_decoder(nemo_cfg, True) == "enabled"
+        assert nemo_cfg.greedy.use_cuda_graph_decoder is True
+        assert _set_cuda_graph_decoder(object(), False) == "not supported"
+
+        # setup_decoding_strategy must hand the flag to the model for RNNT/TDT models
+        class FakeRNNTModel:
+            joint = object()
+
+            def __init__(self):
+                self.applied = None
+
+            def change_decoding_strategy(self, decoding_cfg):
+                self.applied = decoding_cfg
+
+        for enabled in (False, True):
+            fake_model = FakeRNNTModel()
+            setup_decoding_strategy(fake_model, DecodingConfig(use_cuda_graph_decoder=enabled))
+            assert fake_model.applied is not None, "RNNT decoding config was not applied"
+            assert fake_model.applied.greedy.use_cuda_graph_decoder is enabled, (
+                f"use_cuda_graph_decoder={enabled} was not forwarded to NeMo"
+            )
+            # rnnt_fused_batch_size must not be mistaken for the CUDA graph switch
+            assert fake_model.applied.fused_batch_size == -1
+
+        # CLI override
+        cli_cfg = parse_args(["decoding.use_cuda_graph_decoder=true"], VideoToSRTConfig())
+        assert cli_cfg.decoding.use_cuda_graph_decoder is True
+
         assert cfg.rnnt_timestamp_type == "all"
         assert cfg.ctc_timestamp_type == "all"
 
@@ -312,7 +355,7 @@ def test_decoding_config() -> TestResult:
         return TestResult(
             name="decoding_config",
             passed=True,
-            message="DecodingConfig works correctly with CUDA graphs and validated segment splitting settings",
+            message="DecodingConfig works correctly with CUDA graph decoder and validated segment splitting settings",
         )
 
     except AssertionError as e:
@@ -471,7 +514,11 @@ def test_smart_segmentation() -> TestResult:
 
 def test_segment_merging() -> TestResult:
     """Test overlapping segment merging functions."""
-    from nemoscribe import deduplicate_segments, merge_overlapping_segments
+    from nemoscribe import (
+        deduplicate_segments,
+        merge_chunk_boundary_segments,
+        merge_overlapping_segments,
+    )
 
     try:
         # Test overlapping segments
@@ -493,6 +540,45 @@ def test_segment_merging() -> TestResult:
 
         deduped = deduplicate_segments(segments_with_dups, similarity_threshold=0.8)
         assert len(deduped) == 2, f"Expected 2 deduplicated segments, got {len(deduped)}"
+
+        # Chunk-boundary merging: adjacent sentences far from a boundary are kept
+        adjacent = [(10.0, 12.0, "Hello there."), (12.08, 14.0, "How are you?")]
+        result = merge_chunk_boundary_segments(adjacent, [600.0])
+        assert result == adjacent, f"Adjacent sentences must be kept, got {result}"
+
+        # Legitimately repeated line far from a boundary is kept
+        repeated = [(493.1, 493.6, "Next."), (495.1, 495.5, "Next.")]
+        result = merge_chunk_boundary_segments(repeated, [600.0])
+        assert result == repeated, f"Repeated line must be kept, got {result}"
+
+        # True duplicate touching at the boundary is merged
+        dup = [
+            (597.84, 600.0, "How come every bag of snacks is half"),
+            (600.0, 603.44, "How come every bag of snacks is half eaten?"),
+        ]
+        result = merge_chunk_boundary_segments(dup, [600.0])
+        assert result == [(597.84, 603.44, "How come every bag of snacks is half eaten?")], (
+            f"Boundary duplicate must merge, got {result}"
+        )
+
+        # Near-identical pair straddling a boundary with a small gap is merged
+        near = [
+            (597.0, 599.9, "we should go to the store now"),
+            (600.1, 602.5, "We should go to the store now"),
+        ]
+        result = merge_chunk_boundary_segments(near, [600.0])
+        assert len(result) == 1, f"Near-identical straddling pair must merge, got {result}"
+
+        # Different sentences straddling a boundary but not touching are kept
+        different = [(597.0, 599.9, "Open the door."), (600.4, 602.0, "Where is the car?")]
+        result = merge_chunk_boundary_segments(different, [600.0])
+        assert result == different, f"Different sentences must be kept, got {result}"
+
+        # Edge cases
+        assert merge_chunk_boundary_segments([], [600.0]) == []
+        unsorted = [(5.0, 6.0, "B"), (1.0, 2.0, "A")]
+        assert merge_chunk_boundary_segments(unsorted, []) == sorted(unsorted)
+        assert merge_chunk_boundary_segments(unsorted, [600.0]) == sorted(unsorted)
 
         return TestResult(
             name="segment_merging",
@@ -1088,6 +1174,19 @@ def test_llm_cli_override() -> TestResult:
         assert cfg.llm_postprocess.model == "gpt-5.4-mini"
         assert cfg.llm_postprocess.batch_size == 15
 
+        # An explicit API key must never appear in the logged configuration
+        from nemoscribe.cli import _config_yaml_for_logging
+
+        secret = "sk-test-secret-value-123"
+        cfg = parse_args([f"llm_postprocess.api_key={secret}"], VideoToSRTConfig())
+        logged = _config_yaml_for_logging(cfg)
+        assert secret not in logged, "API key leaked into the logged configuration"
+        assert "REDACTED" in logged, "Redaction marker missing from logged configuration"
+        assert cfg.llm_postprocess.api_key == secret, "Redaction must not modify the runtime config"
+        assert "api_key: null" in _config_yaml_for_logging(VideoToSRTConfig()), (
+            "An unset API key should stay null in the logged configuration"
+        )
+
         return TestResult(
             name="llm_cli_override",
             passed=True,
@@ -1332,6 +1431,85 @@ def test_llm_validation_fallback() -> TestResult:
         return TestResult(name="llm_validation_fallback", passed=False, message=f"Exception: {e}")
 
 
+def test_llm_response_handling() -> TestResult:
+    """Test provider response parsing and request parameters without calling any API."""
+    from types import SimpleNamespace
+
+    from nemoscribe.llm_postprocess import (
+        LLMPostProcessConfig,
+        _extract_response_text,
+        process_batch_with_agent_loop,
+    )
+
+    indexed_batch = [(1, 0.0, 2.0, "Hello Herman how are you today")]
+    corrected_json = '{"1": "Hello Herrmann how are you today"}'
+    expected = [(0.0, 2.0, "Hello Herrmann how are you today")]
+    original = [(0.0, 2.0, "Hello Herman how are you today")]
+
+    class FakeAnthropicClient:
+        def __init__(self, content):
+            self.calls = []
+            self.messages = SimpleNamespace(create=self._create)
+            self._content = content
+
+        def _create(self, **kwargs):
+            self.calls.append(kwargs)
+            return SimpleNamespace(content=self._content)
+
+    class FakeOpenAIClient:
+        def __init__(self, content):
+            self.calls = []
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+            self._content = content
+
+        def _create(self, **kwargs):
+            self.calls.append(kwargs)
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=self._content))])
+
+    try:
+        anthropic_cfg = LLMPostProcessConfig(provider="anthropic", max_retries=1)
+
+        # Anthropic: a thinking block may precede the text block
+        thinking_first = [
+            SimpleNamespace(type="thinking", thinking=""),
+            SimpleNamespace(type="text", text=corrected_json),
+        ]
+        assert _extract_response_text(SimpleNamespace(content=thinking_first), "anthropic") == corrected_json
+        client = FakeAnthropicClient(thinking_first)
+        result = process_batch_with_agent_loop(client, indexed_batch, anthropic_cfg, "anthropic")
+        assert result == expected, f"Thinking block before text should still be parsed, got {result}"
+
+        # Anthropic: no text block at all (e.g. refusal) falls back to the original
+        assert _extract_response_text(SimpleNamespace(content=[]), "anthropic") == ""
+        client = FakeAnthropicClient([SimpleNamespace(type="thinking", thinking="")])
+        result = process_batch_with_agent_loop(client, indexed_batch, anthropic_cfg, "anthropic")
+        assert result == original, f"Response without text should fall back to original, got {result}"
+
+        # OpenAI: must send max_completion_tokens, never the deprecated max_tokens
+        openai_cfg = LLMPostProcessConfig(provider="openai", model="gpt-5.4-mini", max_retries=1)
+        client = FakeOpenAIClient(corrected_json)
+        result = process_batch_with_agent_loop(client, indexed_batch, openai_cfg, "openai")
+        assert result == expected, f"OpenAI response should be parsed, got {result}"
+        assert "max_completion_tokens" in client.calls[0], "OpenAI call must use max_completion_tokens"
+        assert "max_tokens" not in client.calls[0], "OpenAI call must not send deprecated max_tokens"
+
+        # OpenAI: None content (e.g. refusal) falls back to the original
+        client = FakeOpenAIClient(None)
+        result = process_batch_with_agent_loop(client, indexed_batch, openai_cfg, "openai")
+        assert result == original, f"None content should fall back to original, got {result}"
+
+        return TestResult(
+            name="llm_response_handling",
+            passed=True,
+            message="LLM provider responses and request parameters handled correctly",
+        )
+
+    except AssertionError as e:
+        return TestResult(name="llm_response_handling", passed=False, message=f"Assertion failed: {e}")
+    except Exception as e:
+        return TestResult(name="llm_response_handling", passed=False, message=f"Exception: {e}")
+
+
 def test_full_config() -> TestResult:
     """Test full VideoToSRTConfig with all sub-configs."""
     from nemoscribe import VideoToSRTConfig
@@ -1404,6 +1582,7 @@ def run_all_tests() -> List[TestResult]:
         ("llm_parsing", test_llm_parsing),
         ("llm_fallback", test_llm_fallback),
         ("llm_validation_fallback", test_llm_validation_fallback),
+        ("llm_response_handling", test_llm_response_handling),
         ("full_config", test_full_config),
     ]
 
@@ -1431,7 +1610,7 @@ def main():
         help="Run specific test (baseline, vad, itn, decoding, nemo_api, "
         "segmentation, merging, performance, ab_test, metrics, srt, "
         "srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, "
-        "llm_parsing, llm_fallback, llm_validation_fallback, full, all)",
+        "llm_parsing, llm_fallback, llm_validation_fallback, llm_response, full, all)",
         default="all",
     )
     parser.add_argument(
@@ -1480,6 +1659,7 @@ def main():
             "llm_parsing": test_llm_parsing,
             "llm_fallback": test_llm_fallback,
             "llm_validation_fallback": test_llm_validation_fallback,
+            "llm_response": test_llm_response_handling,
             "full": test_full_config,
         }
 

@@ -116,6 +116,8 @@ This VAD parameter set addresses the following issues:
 > **Chicago Fire validation (2026-05-05)**: Tested on `Chicago Fire S12E01` with an RTX 3070 Laptop GPU and NeMo 2.7.3, the stable and reproducible CUDA combination is `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`. In this sample, the no-VAD version had slightly more segments and words with a slightly lower rough WER; the VAD version still kept long segments under control and reduced background-audio risk. We therefore recommend most users start with `ab_test.vad=true`.
 
 > **NeMo Speech 3.0 smoke validation (2026-08-12)**: The default path and the `float32` + VAD + `rnnt_fused_batch_size=0` path both completed on an RTX 3070 Laptop GPU with PyTorch 2.13/CUDA 13.2. Both outputs had identical text and monotonic timestamps.
+>
+> **Full-episode revalidation (2026-11-13)** (Chicago Fire S12E01, 42 min; NeMo Speech 3.0, PyTorch 2.13/CUDA 13.2, RTX 3070 Laptop GPU): NeMo's CUDA graph decoder aborted the process with `CUDA error: an illegal memory access` in every run, including with `compute_dtype=float32` + `rnnt_fused_batch_size=0` — that option never controlled CUDA graphs. NemoScribe now disables the CUDA graph decoder by default (`decoding.use_cuda_graph_decoder=false`); the default, VAD, and `ab_test.vad=true` runs then all completed at about 160x realtime, and the output is identical to the CUDA graph decoder on a short sample. `rnnt_fused_batch_size=0` in the commands here is harmless but no longer needed.
 
 > **Note**: `decoding.rnnt_timestamp_type="all"` and `decoding.segment_separators=[".", "?", "!"]` are defaults and need no manual setting. In the Chicago Fire test, `segment_gap_threshold=20` further split overly long segments while preserving punctuation-based splitting.
 
@@ -130,7 +132,7 @@ This VAD parameter set addresses the following issues:
 | `vad.pad_offset` | `0.1` | Reduced from the default 0.2 to cut trailing padding and avoid overlap. |
 | `vad.filter_speech_first` | `false` | **No aggressive filtering**. Avoids deleting dialogue buried in noisy backgrounds. |
 | `compute_dtype` | `float32` | **Chicago Fire verified stable value**. More stable than `bfloat16` on this RTX 3070 Laptop GPU. |
-| `decoding.rnnt_fused_batch_size` | `0` | **Disables CUDA graphs**. Avoids CUDA illegal memory access during warmup / first-chunk transcription in the Chicago Fire run. |
+| `decoding.rnnt_fused_batch_size` | `0` | Legacy setting, kept for reproducibility. It does **not** disable CUDA graphs; the CUDA graph decoder is now off by default (`decoding.use_cuda_graph_decoder=false`), which is what actually avoids the CUDA illegal memory access. |
 | `decoding.segment_separators` | `[".", "?", "!"]` | **Punctuation splitting**. Splits segments at sentence boundaries to avoid overly long subtitles. |
 | `decoding.segment_gap_threshold` | `20` | **Chicago Fire verified optimum**. Longest subtitle dropped from 30.48s to 12.48s; `15/10` did not reduce it further. |
 | `postprocessing.enable_itn` | `false` | Drama dialogue usually doesn't need numbers converted to digits. |

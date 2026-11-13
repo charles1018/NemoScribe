@@ -439,6 +439,28 @@ def parse_args(args: List[str], cfg: VideoToSRTConfig) -> VideoToSRTConfig:
     return cfg
 
 
+_REDACTED = "***REDACTED***"
+
+
+def _config_yaml_for_logging(cfg: VideoToSRTConfig) -> str:
+    """
+    Render the config as YAML with secrets masked.
+
+    The config may carry an explicit LLM API key (llm_postprocess.api_key=...);
+    it must never reach logs or terminal scrollback.
+
+    Args:
+        cfg: Runtime config (not modified)
+
+    Returns:
+        YAML string safe to log
+    """
+    conf = OmegaConf.structured(cfg)
+    if conf.llm_postprocess.api_key:
+        conf.llm_postprocess.api_key = _REDACTED
+    return OmegaConf.to_yaml(conf)
+
+
 def main() -> int:
     """
     NemoScribe entry point.
@@ -462,7 +484,7 @@ def main() -> int:
     # Parse overrides
     cfg = parse_args(args, cfg)
 
-    logging.info(f"Configuration:\n{OmegaConf.to_yaml(OmegaConf.structured(cfg))}")
+    logging.info(f"Configuration:\n{_config_yaml_for_logging(cfg)}")
 
     generated = process_videos(cfg)
     if generated:

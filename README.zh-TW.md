@@ -65,7 +65,7 @@ video.mp4 ─► FFmpeg ─► VAD 語音偵測 ─► NeMo ASR (Parakeet-TDT) �
 - **智慧分段**：在靜音處分割音訊，而非語音中間
 - **逆文字正規化 (ITN)**：將口語形式轉換為書寫形式（「twenty five」→「25」）
 - **LLM 後處理**：使用 AI（OpenAI/Anthropic）修正人名與轉錄錯誤
-- **CUDA 最佳化**：預設啟用 CUDA graphs 以加速推論
+- **GPU 加速**：在 RTX 3070 Laptop GPU 上約 160x realtime；為了穩定性，NeMo 的 CUDA graph 解碼器改為選用
 - **批次處理**：處理整個目錄的影片檔案
 
 ## 📋 系統需求
@@ -246,6 +246,8 @@ uv run nemoscribe video_path=video.mp4 \
 
 2026-08-12 升級至 NeMo Speech 3.0 後，已在同級 GPU 重新驗證預設路徑，以及 `float32` + VAD + `rnnt_fused_batch_size=0` 高風險路徑；兩者在 smoke sample 都產生內容相同且時間單調遞增的字幕。
 
+2026-11-13 以完整一集重新驗證（Chicago Fire S12E01，42 分鐘；NeMo Speech 3.0、PyTorch 2.13/CUDA 13.2、RTX 3070 Laptop GPU）：NeMo 的 CUDA graph 解碼器每次都以 `CUDA error: an illegal memory access` 中止整個行程，即使加上 `compute_dtype=float32` + `rnnt_fused_batch_size=0` 也一樣——該選項從未控制 CUDA graphs。NemoScribe 現在預設停用 CUDA graph 解碼器（`decoding.use_cuda_graph_decoder=false`）；停用後預設、VAD 與 `ab_test.vad=true` 三種執行都能完成，速度約 160x realtime，且在短樣本上與 CUDA graph 解碼器的輸出完全相同。本文指令中的 `rnnt_fused_batch_size=0` 無害，但已不再需要。
+
 ### VAD A/B 測試
 
 ```bash
@@ -370,7 +372,8 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 | 選項 | 預設值 | 說明 |
 |------|--------|------|
-| `rnnt_fused_batch_size` | -1 | CUDA graphs：-1=啟用，0=停用 |
+| `rnnt_fused_batch_size` | -1 | Joint fused batch size（<=0 停用 fused 步驟）。不控制 CUDA graphs |
+| `use_cuda_graph_decoder` | false | NeMo CUDA graph greedy 解碼器。預設停用：在部分 GPU 上會以 CUDA illegal memory access 中止；兩種解碼器輸出相同 |
 | `rnnt_timestamp_type` | "all" | 時間戳記類型："char"、"word"、"segment"、"all" |
 | `ctc_timestamp_type` | "all" | CTC 時間戳記類型 |
 | `segment_separators` | `[".", "?", "!"]` | 在標點符號處分割片段 |
@@ -520,7 +523,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# 可用測試：baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, full
+# 可用測試：baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, llm_response, full
 ```
 
 ### 測試涵蓋範圍
@@ -528,10 +531,10 @@ uv run python tests/test_improvements.py --test metrics
 - **baseline_config**：預設設定的向下相容性
 - **vad_config**：VAD 設定正確性
 - **itn_functions**：ITN 正規化功能
-- **decoding_config**：解碼設定（CUDA graphs）
+- **decoding_config**：解碼設定（CUDA graph 解碼器開關、分段設定）
 - **nemo_api_compatibility**：NeMo 解碼設定別名相容性
 - **smart_segmentation**：智慧分段邏輯
-- **segment_merging**：重疊片段合併
+- **segment_merging**：重疊片段合併與分塊邊界合併（僅合併跨越分塊邊界的重複片段）
 - **performance_config**：效能設定
 - **ab_test_config**：VAD A/B 測試設定與輸出路徑輔助函式
 - **quality_metrics**：WER/CER 計算
@@ -545,6 +548,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_parsing**：JSON 回應解析與 prompt 建構
 - **llm_fallback**：停用或無 API 金鑰時的優雅降級
 - **llm_validation_fallback**：無效的 LLM 修正會回退到原始批次內容
+- **llm_response_handling**：供應商回應解析（thinking 區塊、空回應）與請求參數
 - **full_config**：完整設定組合
 
 ## 📊 品質指標

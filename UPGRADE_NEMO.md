@@ -198,7 +198,7 @@ uv run python tests/test_improvements.py --test srt
 uv run python tests/test_improvements.py --test cli
 ```
 
-Run the full regression suite when the bump is substantial. This currently runs all 22 tests; do not use `--test full` for this because that is only the single full-config test.
+Run the full regression suite when the bump is substantial. The no-flag invocation runs every test; do not use `--test full` for this because that is only the single full-config test.
 
 ```bash
 uv run python tests/test_improvements.py
@@ -206,20 +206,32 @@ uv run python tests/test_improvements.py
 
 ### 4. Real transcription smoke test
 
-Run one real sample on the target machine:
+Run one real sample on the target machine. The sample must be long enough to
+be split into several chunks (longer than `audio.max_chunk_duration`, 300 s by
+default; a full TV episode is ideal). A clip of a few seconds does not exercise
+chunked transcription and has missed a hard crash before (see the 2026-11-13
+reference note).
 
 ```bash
-uv run nemoscribe video_path="sample.mp4"
+uv run nemoscribe video_path="episode.mkv"
 ```
 
-Also test the higher-risk path:
+Also test the higher-risk paths:
 
 ```bash
-uv run nemoscribe video_path="sample.mp4" \
+uv run nemoscribe video_path="episode.mkv" \
   compute_dtype=float32 \
-  vad.enabled=true \
-  decoding.rnnt_fused_batch_size=0
+  vad.enabled=true
+
+# NeMo's CUDA graph decoder (off by default in NemoScribe). Re-test it on
+# every upgrade; if it completes on a full episode, the default can be revisited.
+uv run nemoscribe video_path="episode.mkv" \
+  decoding.use_cuda_graph_decoder=true
 ```
+
+A CUDA failure aborts the whole process (exit code 134) instead of raising a
+Python exception, and systemd-coredump may then write a multi-GB core file to
+the root volume. Check free disk space before running the CUDA graph test.
 
 Check:
 
@@ -310,8 +322,8 @@ Known upstream security constraint as of 2026-08-12: NeMo Speech 3.0 requires
 `lightning<=2.4.0`, and released Lightning versions through 2.6.5 are affected
 by [CVE-2026-58659](https://github.com/advisories/GHSA-qqmf-gpg7-g8gw) when
 `LightningModule.load_from_checkpoint()` loads an attacker-controlled
-`_instantiator`. The upstream fix is merged but not yet in a stable release
-compatible with NeMo 3.0. ASR `.nemo` models use `ASRModel.restore_from()`, and
+`_instantiator`. Lightning 2.6.6 (2026-09-10) contains the fix, but NeMo 3.0.0
+cannot use it (see the 2026-11-13 note below). ASR `.nemo` models use `ASRModel.restore_from()`, and
 NemoScribe explicitly rejects `.ckpt` VAD paths before NeMo's VAD helper can
 reach the affected Lightning API. Continue treating all accepted model archives
 as trusted input, and revisit the Lightning constraint when NeMo permits a
@@ -320,3 +332,48 @@ stable patched release.
 Expected lockfile cleanup includes removal of legacy non-speech, deployment,
 Optuna, and `pyannote-*` packages. Do not re-add them unless a direct feature
 requires them.
+
+### Upstream Status Check and CUDA Graph Decoder Finding (2026-11-13)
+
+No dependency was changed in this check.
+
+Upstream status:
+
+- `nemo-toolkit` 3.0.0 (2026-08-07, tag `v3.0.0`, commit `fd6a8775`) is still the
+  latest release on both PyPI and GitHub. There is no 3.0.x patch release.
+- Upstream `main` (`079e4877`, 2026-11-12) is versioned 3.1.0 and is 283 commits
+  ahead of the tag. It is not a release; do not track it.
+- `main` requires `lightning>=2.6.6,<2.7`, `pytorch-lightning>=2.6.6,<2.7`,
+  `hydra-core>=1.3.8,<1.4`, `omegaconf>=2.3,<2.4`, and pins `lhotse==2.0.0a6`
+  (upstream #16504). The exact `hydra-core==1.3.2` pin here must be relaxed when
+  that release ships.
+- Lightning 2.6.6 fixes CVE-2026-58659, but NeMo 3.0.0 caps `lightning<=2.4.0`
+  and upstream reported NeMo as broken on Lightning 2.6 before #16504, so the
+  patched Lightning cannot be forced onto 3.0.0. NemoScribe's `.ckpt` rejection
+  remains the mitigation until the next NeMo release.
+- Unreleased fixes on `main` that touch NemoScribe's paths:
+  - #16098: batched TDT greedy decoding stored a stale token duration in the
+    PyTorch implementation. It only occurs with more than one utterance per
+    batch; NemoScribe transcribes with `batch_size=1`, so it is not affected.
+  - #16096: `GreedyTDTInfer` skipped a frame when the symbol budget ran out.
+    NemoScribe uses the batched `greedy_batch` strategy, so it is not affected.
+  - #15714 (issue #16576): `change_attention_model()` adds randomly initialized
+    attention biases to models trained with `use_bias: false`. This includes the
+    default `parakeet-tdt-0.6b-v2`. NemoScribe only calls it when
+    `audio.long_audio_threshold` is lowered from its disabled default; leave it
+    disabled on NeMo 3.0.0.
+
+CUDA graph decoder:
+
+- On an RTX 3070 Laptop GPU (driver 620.70) with PyTorch 2.13.0+cu132, NeMo's
+  CUDA graph implementation of TDT greedy decoding (`full_graph` mode) aborted
+  with `CUDA error: an illegal memory access` in 7 of 7 runs of a 42-minute
+  episode, at the second or third chunk, with bfloat16 and with float32.
+- With `greedy.use_cuda_graph_decoder=false` the same episode completed in all
+  8 transcriptions (about 160x realtime, 2.9-3.5 GiB peak allocated), with
+  reproducible output. On an 11-second clip both decoders produce byte-identical subtitles.
+- `fused_batch_size` only sets the joint's fused loss/WER step. Values `-1` and
+  `0` are equivalent in NeMo 3.0 and neither disables CUDA graphs, so the old
+  `rnnt_fused_batch_size=0` recommendation was not a real workaround.
+- The 2026-08-12 smoke test used an 11-second clip, which is a single chunk and
+  does not trigger the crash. Use a multi-chunk video for upgrade validation.

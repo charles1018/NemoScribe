@@ -32,6 +32,7 @@ from nemoscribe.postprocess import (
     apply_itn_to_segments,
     deduplicate_segments,
     get_itn_normalizer,
+    merge_chunk_boundary_segments,
     merge_overlapping_segments,
 )
 
@@ -79,6 +80,7 @@ __all__ = [
     "apply_itn",
     "apply_itn_to_segments",
     "merge_overlapping_segments",
+    "merge_chunk_boundary_segments",
     "deduplicate_segments",
     # VAD functions
     "find_optimal_split_points",

@@ -19,8 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a GitHub Actions workflow that checks `uv.lock` and runs `ruff check .` via `uvx`; refreshed the action and Ruff versions
 
+### Fixed
+
+- Chunked transcription no longer deletes real dialogue: merging and deduplication of chunk-overlap duplicates is now restricted to segments that straddle a chunk boundary. Previously, adjacent sentences less than 0.1 s apart and legitimately repeated lines anywhere in the video could be dropped (129 words in a 42-minute test episode; WER against the official subtitles improved from 16.00% to 13.78%)
+- Full-length videos no longer abort with `CUDA error: an illegal memory access`: NeMo's CUDA graph decoder is now disabled by default through the new `decoding.use_cuda_graph_decoder` option (default `false`). On an RTX 3070 Laptop GPU with NeMo Speech 3.0 and PyTorch 2.13 it crashed in every run of a 42-minute episode, while the PyTorch decoder completes at about 160x realtime with identical output. Set `decoding.use_cuda_graph_decoder=true` to opt back in
+- Corrected the `decoding.rnnt_fused_batch_size` documentation and log message: it sets NeMo's joint fused batch size and never controlled CUDA graphs, so `rnnt_fused_batch_size=0` was not a working stability workaround
+- LLM post-processing with Anthropic models now reads the text blocks of a response instead of assuming the first block is text; a leading thinking block previously failed every attempt and silently fell back to the uncorrected subtitles
+- LLM post-processing with OpenAI now sends `max_completion_tokens` instead of the deprecated `max_tokens`, which reasoning models reject, and treats an empty reply as a failed attempt
+
 ### Security
 
+- Masked `llm_postprocess.api_key` in the configuration printed at startup; an API key passed on the command line was previously written to the log in clear text
 - Rejected local Lightning `.ckpt` VAD models before NeMo can route them through the vulnerable checkpoint loader described by CVE-2026-58659; use a NeMo registry model or trusted local `.nemo` archive
 
 ### Documentation

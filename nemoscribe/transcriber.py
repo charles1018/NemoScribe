@@ -48,8 +48,7 @@ from nemoscribe.log_utils import suppress_repetitive_nemo_logs
 from nemoscribe.postprocess import (
     ITNNormalizer,
     apply_itn_to_segments,
-    deduplicate_segments,
-    merge_overlapping_segments,
+    merge_chunk_boundary_segments,
 )
 from nemoscribe.srt import (
     clip_segments_to_window,
@@ -96,6 +95,26 @@ def _add_decoding_kwarg(
     )
 
 
+def _set_cuda_graph_decoder(decoding_cfg: Any, enabled: bool) -> str:
+    """
+    Set NeMo's greedy CUDA graph decoder flag when this NeMo version exposes it.
+
+    NeMo enables the CUDA graph decoder by default. On some GPU/driver
+    combinations it aborts the process with an illegal memory access during
+    chunked transcription, so NemoScribe controls it explicitly.
+
+    Returns:
+        Status string for logging ("enabled", "disabled", or "not supported")
+    """
+    greedy_cfg = getattr(decoding_cfg, "greedy", None)
+    if greedy_cfg is None or not hasattr(greedy_cfg, "use_cuda_graph_decoder"):
+        logging.debug("NeMo greedy decoding config has no use_cuda_graph_decoder option")
+        return "not supported"
+
+    greedy_cfg.use_cuda_graph_decoder = enabled
+    return "enabled" if enabled else "disabled"
+
+
 def setup_decoding_strategy(
     asr_model: ASRModel,
     cfg: DecodingConfig,
@@ -104,7 +123,7 @@ def setup_decoding_strategy(
     Configure model decoding strategy based on model type.
 
     Follows pattern from NeMo's transcribe_speech.py (lines 308-348).
-    Applies optimizations like CUDA graphs for RNNT models.
+    Applies timestamp, segmentation, and CUDA graph decoder settings.
 
     Args:
         asr_model: Loaded ASR model
@@ -162,12 +181,13 @@ def setup_decoding_strategy(
                 )
 
             decoding_cfg = RNNTDecodingConfig(**decoding_kwargs)
+            cuda_graphs_status = _set_cuda_graph_decoder(decoding_cfg, cfg.use_cuda_graph_decoder)
             asr_model.change_decoding_strategy(decoding_cfg)
 
-            cuda_graphs_status = "enabled" if cfg.rnnt_fused_batch_size == -1 else "disabled"
             logging.info(
                 f"Applied RNNT decoding config: "
-                f"fused_batch_size={cfg.rnnt_fused_batch_size} (CUDA graphs {cuda_graphs_status}), "
+                f"fused_batch_size={cfg.rnnt_fused_batch_size}, "
+                f"CUDA graph decoder {cuda_graphs_status}, "
                 f"timestamp_type={cfg.rnnt_timestamp_type}{sep_info}{gap_info}"
             )
 
@@ -571,16 +591,11 @@ def transcribe_video(
 
                 segments = all_segments
 
-                # Merge overlapping segments from chunk boundaries
+                # Merge duplicates only where two chunks meet; merging across the
+                # whole episode would delete real dialogue and repeated lines.
                 original_count = len(segments)
-                segments = merge_overlapping_segments(
-                    segments,
-                    overlap_threshold=0.1,
-                    merge_strategy="prefer_longer",
-                )
-
-                # Deduplicate similar segments (may occur at chunk boundaries)
-                segments = deduplicate_segments(segments, similarity_threshold=0.8)
+                chunk_boundaries = [chunk[2] for chunk in chunks[:-1]]
+                segments = merge_chunk_boundary_segments(segments, chunk_boundaries)
 
                 if len(segments) < original_count:
                     logging.debug(

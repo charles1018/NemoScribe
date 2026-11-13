@@ -65,7 +65,7 @@ video.mp4 ─► FFmpeg ─► VAD speech detection ─► NeMo ASR (Parakeet-TD
 - **Smart Segmentation**: Split audio at silence boundaries, not mid-speech
 - **Inverse Text Normalization (ITN)**: Convert spoken forms to written forms ("twenty five" → "25")
 - **LLM Post-processing**: Fix character names and transcription errors using AI (OpenAI/Anthropic)
-- **CUDA Optimized**: CUDA graphs enabled by default for faster inference
+- **GPU Accelerated**: about 160x realtime on an RTX 3070 Laptop GPU; NeMo's CUDA graph decoder is opt-in for stability
 - **Batch Processing**: Process entire directories of videos
 
 ## 📋 Requirements
@@ -246,6 +246,8 @@ Chicago Fire S12E01 validation on 2026-05-05 with NeMo 2.7.3 showed that `comput
 
 The 2026-08-12 NeMo Speech 3.0 upgrade revalidated both the default and the higher-risk `float32` + VAD + `rnnt_fused_batch_size=0` paths on the same GPU class. Both produced identical, monotonic subtitles for the smoke sample.
 
+Full-episode revalidation on 2026-11-13 (Chicago Fire S12E01, 42 min; NeMo Speech 3.0, PyTorch 2.13/CUDA 13.2, RTX 3070 Laptop GPU): NeMo's CUDA graph decoder aborted the process with `CUDA error: an illegal memory access` in every run, including with `compute_dtype=float32` + `rnnt_fused_batch_size=0` — that option never controlled CUDA graphs. NemoScribe now disables the CUDA graph decoder by default (`decoding.use_cuda_graph_decoder=false`); the default, VAD, and `ab_test.vad=true` runs then all completed at about 160x realtime, and the output is identical to the CUDA graph decoder on a short sample. `rnnt_fused_batch_size=0` in the commands here is harmless but no longer needed.
+
 ### VAD A/B Test
 
 ```bash
@@ -370,7 +372,8 @@ uv run nemoscribe video_path=video.mp4 performance.calculate_rtfx=true
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `rnnt_fused_batch_size` | -1 | CUDA graphs: -1=enabled, 0=disabled |
+| `rnnt_fused_batch_size` | -1 | Joint fused batch size (<=0 disables the fused step). Does not control CUDA graphs |
+| `use_cuda_graph_decoder` | false | NeMo CUDA graph greedy decoder. Off by default: it can abort with a CUDA illegal memory access on some GPUs; output is identical either way |
 | `rnnt_timestamp_type` | "all" | Timestamp type: "char", "word", "segment", "all" |
 | `ctc_timestamp_type` | "all" | CTC timestamp type |
 | `segment_separators` | `[".", "?", "!"]` | Split segments at punctuation marks |
@@ -520,7 +523,7 @@ uv run python tests/test_improvements.py --test itn
 uv run python tests/test_improvements.py --test segmentation
 uv run python tests/test_improvements.py --test metrics
 
-# Available tests: baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, full
+# Available tests: baseline, vad, itn, decoding, nemo_api, segmentation, merging, performance, ab_test, metrics, srt, srt_edge, path, cli, cli_list, llm, llm_cli, llm_validation, llm_parsing, llm_fallback, llm_validation_fallback, llm_response, full
 ```
 
 ### Test Coverage
@@ -528,10 +531,10 @@ uv run python tests/test_improvements.py --test metrics
 - **baseline_config**: Default configuration backward compatibility
 - **vad_config**: VAD configuration correctness
 - **itn_functions**: ITN normalization functionality
-- **decoding_config**: Decoding configuration (CUDA graphs)
+- **decoding_config**: Decoding configuration (CUDA graph decoder toggle, segment splitting)
 - **nemo_api_compatibility**: NeMo decoding config alias compatibility
 - **smart_segmentation**: Smart segmentation logic
-- **segment_merging**: Overlapping segment merging
+- **segment_merging**: Overlapping segment merging and chunk-boundary merging (only duplicates straddling a chunk boundary are merged)
 - **performance_config**: Performance configuration
 - **ab_test_config**: VAD A/B test configuration and output path helpers
 - **quality_metrics**: WER/CER calculation
@@ -545,6 +548,7 @@ uv run python tests/test_improvements.py --test metrics
 - **llm_parsing**: JSON response parsing and prompt building
 - **llm_fallback**: Graceful fallback when disabled or no API key
 - **llm_validation_fallback**: Invalid LLM corrections fall back to the original batch
+- **llm_response_handling**: Provider response parsing (thinking blocks, empty replies) and request parameters
 - **full_config**: Complete configuration combination
 
 ## 📊 Quality Metrics

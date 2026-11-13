@@ -116,6 +116,8 @@ uv run nemoscribe \
 > **Chicago Fire 實測（2026-05-05）**：以 `Chicago Fire S12E01`、RTX 3070 Laptop GPU、NeMo 2.7.3 實跑，穩定可重現的 CUDA 組合為 `compute_dtype=float32` + `decoding.rnnt_fused_batch_size=0`。在這個樣本中，no-VAD 版本的字幕段數與詞數略高，粗略 WER 也略低；VAD 版本則仍能保持長段落控制與降低背景音風險。因此建議一般使用者先跑 `ab_test.vad=true`。
 
 > **NeMo Speech 3.0 smoke 驗證（2026-08-12）**：在 RTX 3070 Laptop GPU 搭配 PyTorch 2.13/CUDA 13.2，預設路徑與 `float32` + VAD + `rnnt_fused_batch_size=0` 路徑皆能完成；兩者輸出文字相同，時間戳記也維持單調遞增。
+>
+> **完整一集重新驗證（2026-11-13）**：Chicago Fire S12E01，42 分鐘；NeMo Speech 3.0、PyTorch 2.13/CUDA 13.2、RTX 3070 Laptop GPU：NeMo 的 CUDA graph 解碼器每次都以 `CUDA error: an illegal memory access` 中止整個行程，即使加上 `compute_dtype=float32` + `rnnt_fused_batch_size=0` 也一樣——該選項從未控制 CUDA graphs。NemoScribe 現在預設停用 CUDA graph 解碼器（`decoding.use_cuda_graph_decoder=false`）；停用後預設、VAD 與 `ab_test.vad=true` 三種執行都能完成，速度約 160x realtime，且在短樣本上與 CUDA graph 解碼器的輸出完全相同。本文指令中的 `rnnt_fused_batch_size=0` 無害，但已不再需要。
 
 > **注意**：`decoding.rnnt_timestamp_type="all"` 和 `decoding.segment_separators=[".", "?", "!"]` 為預設值，無需手動設定。Chicago Fire 實測中，`segment_gap_threshold=20` 會在保留標點分段的前提下，進一步補切過長段落。
 
@@ -130,7 +132,7 @@ uv run nemoscribe \
 | `vad.pad_offset` | `0.1` | 從預設 0.2 降低，減少段落後的 padding，避免重疊。 |
 | `vad.filter_speech_first` | `false` | **不強行過濾**。避免誤刪背景吵雜的對話。 |
 | `compute_dtype` | `float32` | **Chicago Fire 實測穩定值**。在這台 RTX 3070 Laptop GPU 上比 `bfloat16` 更穩定。 |
-| `decoding.rnnt_fused_batch_size` | `0` | **關閉 CUDA graphs**。Chicago Fire 實跑時可避免 warmup/首段轉寫階段的 CUDA illegal memory access。 |
+| `decoding.rnnt_fused_batch_size` | `0` | 舊設定，為了可重現性而保留。它**不會**關閉 CUDA graphs；CUDA graph 解碼器現在預設停用（`decoding.use_cuda_graph_decoder=false`），這才是真正避免 CUDA illegal memory access 的設定。 |
 | `decoding.segment_separators` | `[".", "?", "!"]` | **標點分割**。在句子結尾處分割段落，避免超長字幕。 |
 | `decoding.segment_gap_threshold` | `20` | **Chicago Fire 實測最佳值**。最長字幕從 30.48s 降到 12.48s；`15/10` 沒有再降低最長段。 |
 | `postprocessing.enable_itn` | `false` | 戲劇對白通常不需要將數字轉為阿拉伯數字。 |

@@ -166,17 +166,24 @@ class DecodingConfig:
     Based on NeMo's transcribe_speech.py (lines 166-175, 308-348).
     Supports both RNNT/TDT and CTC models with appropriate settings.
 
-    Key optimizations:
-    - CUDA graphs (fused_batch_size=-1) for faster inference on GPU
+    Key settings:
+    - CUDA graph decoder toggle for RNNT/TDT greedy decoding
     - Timestamp type selection for word/segment level output
     - Segment separators for punctuation-based splitting
     """
 
-    # Enable CUDA graphs for RNNT/TDT models
-    # -1 enables CUDA graphs (recommended for GPU)
-    # 0 disables CUDA graphs
-    # >0 sets fixed batch size for fused operations
+    # Joint fused batch size for RNNT/TDT models (NeMo `fused_batch_size`)
+    # <=0 disables the fused loss/WER step in the joint (the right setting for inference)
+    # >0 sets a fixed fused batch size
+    # NOTE: this does NOT control CUDA graphs; use use_cuda_graph_decoder for that.
     rnnt_fused_batch_size: int = -1
+
+    # Use NeMo's CUDA graph implementation of RNNT/TDT greedy decoding
+    # (NeMo `greedy.use_cuda_graph_decoder`). Disabled by default: on some
+    # GPU/driver combinations it aborts the whole process with
+    # "CUDA error: an illegal memory access" during chunked transcription.
+    # The pure PyTorch decoder produces identical output. Set to true to opt in.
+    use_cuda_graph_decoder: bool = False
 
     # Timestamp type: "char", "word", "segment", or "all" (default)
     # "word" - word-level timestamps only

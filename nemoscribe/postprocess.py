@@ -303,3 +303,80 @@ def deduplicate_segments(
             deduplicated.append(current)
 
     return deduplicated
+
+
+def merge_chunk_boundary_segments(
+    segments: List[Tuple[float, float, str]],
+    boundaries: List[float],
+    boundary_tolerance: float = 0.15,
+    overlap_threshold: float = 0.1,
+    similarity_threshold: float = 0.8,
+) -> List[Tuple[float, float, str]]:
+    """
+    Merge duplicate segments that straddle an internal chunk boundary.
+
+    When a long video is transcribed in chunks, the same speech can be
+    transcribed twice around a chunk boundary (once at the end of one chunk and
+    once at the start of the next). Those duplicates are the only thing that
+    needs merging.
+
+    Applying merge_overlapping_segments() / deduplicate_segments() to the whole
+    episode is unsafe: two genuine, adjacent sentences inside one chunk that are
+    less than 0.1 s apart would be "merged" (the shorter sentence is dropped),
+    and legitimately repeated lines ("Next." ... "Next.") would be
+    deduplicated. This function therefore only considers a pair of consecutive
+    segments when it straddles a chunk boundary, i.e. the earlier segment ends
+    at or after (boundary - tolerance) and the later one starts at or before
+    (boundary + tolerance). Everything else is left untouched.
+
+    A straddling pair is merged when the segments touch/overlap in time
+    (next.start < prev.end + overlap_threshold) or their lowercased word sets
+    have Jaccard similarity >= similarity_threshold. The merged segment spans
+    both and keeps the longer text (the earlier segment's text on ties).
+
+    Args:
+        segments: List of (start, end, text) tuples from all chunks
+        boundaries: Internal chunk boundary times in seconds (the window end of
+            every chunk except the last)
+        boundary_tolerance: Slack (seconds) around a boundary when deciding
+            whether a pair straddles it
+        overlap_threshold: Gap (seconds) below which a straddling pair is
+            considered touching/overlapping
+        similarity_threshold: Jaccard similarity (0-1) above which a straddling
+            pair is considered a duplicate
+
+    Returns:
+        Segments sorted by start time, with boundary duplicates merged
+    """
+    if not segments:
+        return []
+
+    sorted_segments = sorted(segments, key=lambda x: x[0])
+    if not boundaries:
+        return sorted_segments
+
+    def straddles(prev: Tuple[float, float, str], seg: Tuple[float, float, str]) -> bool:
+        return any(
+            prev[1] >= x - boundary_tolerance and seg[0] <= x + boundary_tolerance
+            for x in boundaries
+        )
+
+    def jaccard_similarity(text1: str, text2: str) -> float:
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        if not words1 or not words2:
+            return 0.0
+        return len(words1 & words2) / len(words1 | words2)
+
+    merged: List[Tuple[float, float, str]] = []
+    for seg in sorted_segments:
+        if merged and straddles(merged[-1], seg):
+            prev = merged[-1]
+            touching = seg[0] < prev[1] + overlap_threshold
+            if touching or jaccard_similarity(prev[2], seg[2]) >= similarity_threshold:
+                best = prev[2] if len(prev[2]) >= len(seg[2]) else seg[2]
+                merged[-1] = (min(prev[0], seg[0]), max(prev[1], seg[1]), best)
+                continue
+        merged.append(seg)
+
+    return merged

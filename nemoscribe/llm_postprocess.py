@@ -296,6 +296,34 @@ Return ONLY the JSON object, no markdown code blocks, no explanations."""
     return prompt
 
 
+def _extract_response_text(response: Any, provider: str) -> str:
+    """
+    Extract the text reply from a provider response object.
+
+    Anthropic responses are a list of content blocks; with thinking-capable
+    models the first block may be a thinking block, so collect only blocks of
+    type "text". OpenAI message content may be None (e.g. on a refusal).
+
+    Args:
+        response: Provider SDK response object
+        provider: "anthropic" or "openai"
+
+    Returns:
+        Reply text, or an empty string when the response carries no text
+    """
+    if provider == "anthropic":
+        return "".join(
+            block.text
+            for block in (getattr(response, "content", None) or [])
+            if getattr(block, "type", None) == "text" and isinstance(getattr(block, "text", None), str)
+        )
+
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return ""
+    return choices[0].message.content or ""
+
+
 def process_batch_with_agent_loop(
     client: Any,
     indexed_batch: List[Tuple[int, float, float, str]],
@@ -350,15 +378,16 @@ def process_batch_with_agent_loop(
                     messages=messages,
                     timeout=config.timeout,
                 )
-                response_text = response.content[0].text
             else:  # openai
+                # max_tokens is deprecated and rejected by reasoning models;
+                # max_completion_tokens works for all chat completion models.
                 response = client.chat.completions.create(
                     model=config.model,
                     messages=messages,
-                    max_tokens=4000,
+                    max_completion_tokens=4000,
                     timeout=config.timeout,
                 )
-                response_text = response.choices[0].message.content
+            response_text = _extract_response_text(response, provider)
 
             # Try to parse JSON response
             try:
