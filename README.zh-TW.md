@@ -75,7 +75,7 @@ video.mp4 ─► FFmpeg ─► VAD 語音偵測 ─► NeMo ASR (Parakeet-TDT) �
 | **作業系統** | Windows 10/11、Linux |
 | **Python** | 3.12+（本專案以 3.12 為驗證版本）|
 | **套件管理器** | [uv](https://docs.astral.sh/uv/)（建議）|
-| **CUDA Toolkit** | 預設 cu132（13.2）。PyTorch 2.13 亦提供 cu126/cu130 wheels。|
+| **CUDA Toolkit** | 預設 cu132（13.2）。PyTorch 2.15 亦提供 cu126/cu130 wheels。|
 | **FFmpeg** | 音訊擷取必備 |
 | **硬體** | NVIDIA GPU 搭配 CUDA（建議）|
 
@@ -111,13 +111,13 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
-目前 lockfile 會將 NeMo ASR 解到穩定版 `nemo-toolkit[asr]` 3.0 主線，並使用 PyTorch 2.13 CUDA 13.2 wheels。NeMo 敏感相依套件鎖在已驗證的 Transformers 5.x、NumPy 2.x 與 ONNX 1.22 主線；Hydra Core 1.3.2 與 OmegaConf 2.3.0 則因 NeMo Speech 3.0 上游限制而維持精確版本。
+目前 lockfile 會將 NeMo ASR 解到穩定版 `nemo-toolkit[asr]` 3.0 主線，並使用 PyTorch 2.15 CUDA 13.2 wheels。NeMo 敏感相依套件鎖在已驗證的 Transformers 5.x、NumPy 2.x 與 ONNX 1.23 主線；Hydra Core 1.3.2 與 OmegaConf 2.3.0 則因 NeMo Speech 3.0 上游限制而維持精確版本。
 
 ### 4. 設定 CUDA（強烈建議）
 
 **強烈建議啟用 GPU 加速**以獲得合理的轉錄速度。本專案已預先設定在支援的 Linux/Windows 系統安裝 CUDA 13.2 PyTorch wheel，GPU 使用者只需執行 `uv sync --python 3.12`。
 
-> **注意**：PyTorch 2.13 提供 CUDA 12.6、13.0 與 13.2 wheels；CUDA 13.2 與目前 NeMo Speech 3.0 的 CUDA 主線一致。最新矩陣請參考 [PyTorch Get Started](https://pytorch.org/get-started/locally/)。
+> **注意**：PyTorch 2.15 提供 CUDA 12.6、13.0 與 13.2 wheels；CUDA 13.2 與目前 NeMo Speech 3.0 的 CUDA 主線一致。最新矩陣請參考 [PyTorch Get Started](https://pytorch.org/get-started/locally/)。
 
 如需使用不同的 CUDA 版本，請修改 `pyproject.toml`：
 

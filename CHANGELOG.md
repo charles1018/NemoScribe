@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Upgraded the runtime stack to NeMo Speech 3.0, PyTorch 2.13 with CUDA 13.2, Transformers 5.15, NumPy 2.5, and ONNX 1.22; the minimum supported Python version is now 3.12
-- Upgraded optional ITN, benchmark, and LLM dependencies to their latest stable lines, including `nemo-text-processing` 1.2, jiwer 4, OpenAI 3, Anthropic 0.121, and json-repair 0.63
+- Upgraded the runtime stack to NeMo Speech 3.0, PyTorch 2.15 with CUDA 13.2, Transformers 5.23, HuggingFace Hub 2.4, NumPy 2.5, and ONNX 1.23; the minimum supported Python version is now 3.12
+- Upgraded optional ITN, benchmark, and LLM dependencies to their latest stable lines, including `nemo-text-processing` 1.2, jiwer 4, OpenAI 3.50, Anthropic 2.8, and json-repair 0.64
 - Changed the default LLM post-processing provider and model to OpenAI `gpt-5.4-mini` (previously Anthropic `claude-3-5-sonnet-20241022`); the OpenAI path was verified with live API calls. To keep using Anthropic, set both `llm_postprocess.provider=anthropic` and `llm_postprocess.model` (for example `claude-sonnet-5`)
 - Reused the shared SRT timestamp parser in benchmark/quality scripts; the parser now accepts both comma and dot millisecond separators
 - Deduplicated the Anthropic/OpenAI LLM subtitle batch loop while preserving provider-specific client setup and fallback behavior

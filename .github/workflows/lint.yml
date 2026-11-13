@@ -22,4 +22,4 @@ jobs:
         run: uv lock --check
 
       - name: Run ruff
-        run: uvx --from ruff==0.16.2 ruff check .
+        run: uvx --from ruff==0.17.5 ruff check .

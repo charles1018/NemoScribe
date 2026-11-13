@@ -75,7 +75,7 @@ video.mp4 ─► FFmpeg ─► VAD speech detection ─► NeMo ASR (Parakeet-TD
 | **OS** | Windows 10/11, Linux |
 | **Python** | 3.12+ (3.12 is the project validation target) |
 | **Package Manager** | [uv](https://docs.astral.sh/uv/) (recommended) |
-| **CUDA Toolkit** | Default cu132 (13.2). PyTorch 2.13 also provides cu126/cu130 wheels. |
+| **CUDA Toolkit** | Default cu132 (13.2). PyTorch 2.15 also provides cu126/cu130 wheels. |
 | **FFmpeg** | Required for audio extraction |
 | **Hardware** | NVIDIA GPU with CUDA (recommended) |
 
@@ -111,13 +111,13 @@ cd NemoScribe
 uv sync --python 3.12
 ```
 
-The lockfile resolves the stable `nemo-toolkit[asr]` 3.0 line with PyTorch 2.13 and CUDA 13.2 wheels. NeMo-sensitive dependencies are constrained to the validated Transformers 5.x, NumPy 2.x, and ONNX 1.22 lines; Hydra Core 1.3.2 and OmegaConf 2.3.0 remain exact because NeMo Speech 3.0 caps them upstream.
+The lockfile resolves the stable `nemo-toolkit[asr]` 3.0 line with PyTorch 2.15 and CUDA 13.2 wheels. NeMo-sensitive dependencies are constrained to the validated Transformers 5.x, NumPy 2.x, and ONNX 1.23 lines; Hydra Core 1.3.2 and OmegaConf 2.3.0 remain exact because NeMo Speech 3.0 caps them upstream.
 
 ### 4. Configure CUDA (Strongly Recommended)
 
 **GPU acceleration is strongly recommended** for reasonable transcription speed. The project is pre-configured to install the CUDA 13.2 PyTorch wheel on supported Linux/Windows systems, so GPU users only need to run `uv sync --python 3.12`.
 
-> **Note**: PyTorch 2.13 publishes CUDA 12.6, 13.0, and 13.2 wheels. CUDA 13.2 matches the current NeMo Speech 3.0 CUDA line. See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for the current matrix.
+> **Note**: PyTorch 2.15 publishes CUDA 12.6, 13.0, and 13.2 wheels. CUDA 13.2 matches the current NeMo Speech 3.0 CUDA line. See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for the current matrix.
 
 If you need a different CUDA version, modify `pyproject.toml`:
 
