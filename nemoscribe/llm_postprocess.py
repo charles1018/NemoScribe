@@ -92,13 +92,14 @@ class LLMPostProcessConfig:
     # Master switch - disabled by default
     enabled: bool = False
 
-    # LLM provider: "anthropic" (Claude), "openai" (OpenAI)
-    provider: str = "anthropic"
+    # LLM provider: "openai" (default) or "anthropic" (Claude)
+    provider: str = "openai"
 
     # Model to use
-    # Anthropic: claude-sonnet-5 (default), claude-haiku-4-5
-    # OpenAI: gpt-5.4-mini (cost-efficient), gpt-5.4
-    model: str = "claude-sonnet-5"
+    # OpenAI: gpt-5.4-mini (default, cost-efficient), gpt-5.4
+    # Anthropic: claude-sonnet-5, claude-haiku-4-5
+    # The model is provider-specific: set it whenever you change the provider.
+    model: str = "gpt-5.4-mini"
 
     # API key (None = read from environment variable)
     # For Anthropic: ANTHROPIC_API_KEY

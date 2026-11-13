@@ -286,19 +286,17 @@ uv sync --extra itn
 Fix transcription errors (character names, proper nouns) using an LLM:
 
 ```bash
-# Using Anthropic Claude Sonnet 5 (default provider; balanced quality and latency)
+# Using OpenAI GPT-5.4 mini (the default provider and model; cost-efficient)
+uv run nemoscribe video_path=video.mp4 \
+  vad.enabled=true \
+  llm_postprocess.enabled=true
+
+# Using Anthropic Claude Sonnet 5 (set both provider and model)
 uv run nemoscribe video_path=video.mp4 \
   vad.enabled=true \
   llm_postprocess.enabled=true \
   llm_postprocess.provider=anthropic \
   llm_postprocess.model=claude-sonnet-5
-
-# Using OpenAI GPT-5.4 mini (cost-efficient OpenAI option)
-uv run nemoscribe video_path=video.mp4 \
-  vad.enabled=true \
-  llm_postprocess.enabled=true \
-  llm_postprocess.provider=openai \
-  llm_postprocess.model=gpt-5.4-mini
 ```
 
 Provider pricing changes over time and actual cost depends on subtitle count. Check the official provider pricing pages before running large batches.
@@ -400,8 +398,8 @@ Internally, NemoScribe maps `segment_separators` to whichever NeMo decoding conf
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enabled` | false | Enable LLM-based subtitle correction |
-| `provider` | "anthropic" | LLM provider: "anthropic" or "openai" |
-| `model` | "claude-sonnet-5" | Model name (provider-specific) |
+| `provider` | "openai" | LLM provider: "openai" or "anthropic" |
+| `model` | "gpt-5.4-mini" | Model name (provider-specific; set it whenever you change `provider`) |
 | `api_key` | None | API key (None = read from environment) |
 | `batch_size` | 20 | Segments per LLM request |
 | `max_retries` | 3 | Max validation/retry attempts per batch |

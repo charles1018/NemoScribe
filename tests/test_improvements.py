@@ -1104,8 +1104,8 @@ def test_llm_config() -> TestResult:
         # Test standalone defaults
         llm_cfg = LLMPostProcessConfig()
         assert llm_cfg.enabled is False, "LLM should be disabled by default"
-        assert llm_cfg.provider == "anthropic", f"Default provider should be anthropic, got {llm_cfg.provider}"
-        assert llm_cfg.model == "claude-sonnet-5"
+        assert llm_cfg.provider == "openai", f"Default provider should be openai, got {llm_cfg.provider}"
+        assert llm_cfg.model == "gpt-5.4-mini"
         assert llm_cfg.api_key is None
         assert llm_cfg.batch_size == 20
         assert llm_cfg.max_retries == 3

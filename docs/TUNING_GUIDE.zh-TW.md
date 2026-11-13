@@ -248,8 +248,8 @@ cp .env.example .env
 
 | 提供商 | 模型 | 品質 | 成本/集 | 建議場景 |
 |--------|------|------|---------|----------|
-| Anthropic | `claude-sonnet-5` | 優秀 | 2026-08-31 前 $2/$10 每 input/output MTok；之後 $3/$15 | 預設提供商；品質與速度平衡 |
-| OpenAI | `gpt-5.4-mini` | 強 | $0.75/$4.50 每 input/output MTok | OpenAI 的低成本選項 |
+| OpenAI | `gpt-5.4-mini` | 強 | $0.75/$4.50 每 input/output MTok | **預設**；低成本，已於 2026-11-13 實際呼叫驗證 |
+| Anthropic | `claude-sonnet-5` | 優秀 | 2026-08-31 前 $2/$10 每 input/output MTok；之後 $3/$15 | 選用；provider 與 model 都要指定 |
 | OpenAI | `gpt-5.4` | 優秀 | $2.50/$15 每 input/output MTok | 需要更高 OpenAI 品質時 |
 
 ### 使用範例
@@ -264,9 +264,7 @@ uv run nemoscribe \
     vad.min_duration_off=0.05 \
     vad.pad_onset=0.1 \
     vad.pad_offset=0.1 \
-    llm_postprocess.enabled=true \
-    llm_postprocess.provider=anthropic \
-    llm_postprocess.model=claude-sonnet-5
+    llm_postprocess.enabled=true
 ```
 
 ### 參數說明
@@ -274,8 +272,8 @@ uv run nemoscribe \
 | 參數 | 推薦值 | 說明 |
 | :--- | :--- | :--- |
 | `llm_postprocess.enabled` | `true` | 啟用 LLM 修正 |
-| `llm_postprocess.provider` | `anthropic` | 提供商：`openai` 或 `anthropic` |
-| `llm_postprocess.model` | `claude-sonnet-5` | 模型名稱 |
+| `llm_postprocess.provider` | `openai` | 提供商：`openai` 或 `anthropic` |
+| `llm_postprocess.model` | `gpt-5.4-mini` | 模型名稱（更換 provider 時必須一併指定）|
 | `llm_postprocess.batch_size` | `20` | 每次送給 LLM 的字幕段落數。增大可提供更多上下文但較慢 |
 | `llm_postprocess.max_retries` | `3` | 驗證失敗時的最大重試次數 |
 

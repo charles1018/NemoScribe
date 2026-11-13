@@ -248,8 +248,8 @@ cp .env.example .env
 
 | Provider | Model | Quality | Cost/episode | When to use |
 |--------|------|------|---------|----------|
-| Anthropic | `claude-sonnet-5` | Excellent | $2/$10 per input/output MTok through 2026-08-31; then $3/$15 | Default provider; balanced quality and latency |
-| OpenAI | `gpt-5.4-mini` | Strong | $0.75/$4.50 per input/output MTok | Cost-efficient OpenAI option |
+| OpenAI | `gpt-5.4-mini` | Strong | $0.75/$4.50 per input/output MTok | **Default**; cost-efficient, verified live on 2026-11-13 |
+| Anthropic | `claude-sonnet-5` | Excellent | $2/$10 per input/output MTok through 2026-08-31; then $3/$15 | Optional; set both provider and model |
 | OpenAI | `gpt-5.4` | Excellent | $2.50/$15 per input/output MTok | When you need higher OpenAI quality |
 
 ### Usage Example
@@ -264,9 +264,7 @@ uv run nemoscribe \
     vad.min_duration_off=0.05 \
     vad.pad_onset=0.1 \
     vad.pad_offset=0.1 \
-    llm_postprocess.enabled=true \
-    llm_postprocess.provider=anthropic \
-    llm_postprocess.model=claude-sonnet-5
+    llm_postprocess.enabled=true
 ```
 
 ### Parameter Reference
@@ -274,8 +272,8 @@ uv run nemoscribe \
 | Parameter | Recommended | Description |
 | :--- | :--- | :--- |
 | `llm_postprocess.enabled` | `true` | Enable LLM correction |
-| `llm_postprocess.provider` | `anthropic` | Provider: `openai` or `anthropic` |
-| `llm_postprocess.model` | `claude-sonnet-5` | Model name |
+| `llm_postprocess.provider` | `openai` | Provider: `openai` or `anthropic` |
+| `llm_postprocess.model` | `gpt-5.4-mini` | Model name (set it whenever you change the provider) |
 | `llm_postprocess.batch_size` | `20` | Subtitle segments per LLM request. Larger gives more context but is slower |
 | `llm_postprocess.max_retries` | `3` | Max retries when validation fails |
 
